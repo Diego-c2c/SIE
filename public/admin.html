@@ -141,7 +141,7 @@
     <div>
       <span id="header-info"></span>
       <button id="back-to-index" style="margin-left:0.5rem;padding:0.3rem 0.6rem;font-size:0.8rem;border:none;border-radius:0.25rem;background:#2563eb;color:#fff;cursor:pointer;">
-        Retour au planning
+        Return to planning
       </button>
     </div>
   </header>
@@ -149,83 +149,102 @@
   <main>
     <!-- Message si l'utilisateur n'a pas les droits -->
     <div id="access-notice" class="notice" style="display:none;">
-      Accès refusé : cette page est réservée aux administrateurs et modérateurs.
-      Connectez-vous depuis la page planning avec un compte admin/modo.
+      Access denied: this page is reserved for administrators and moderators.
+      Please log in from the planning page with an admin/modo account.
     </div>
 
     <div class="grid" id="admin-content" style="display:none;">
       <!-- Bloc utilisateurs -->
       <section>
-        <h2>Utilisateurs</h2>
-        <div class="small">Validation des comptes, création, rôles et recherche.</div>
+        <h2>Users</h2>
+        <div class="small">Account validation, creation, roles and search.</div>
 
         <!-- Comptes en attente -->
         <div style="margin-top:0.5rem;">
-          <strong>En attente d'activation</strong>
-          <div id="pending-users">Chargement...</div>
+          <strong>Pending activation</strong>
+          <div id="pending-users">Loading...</div>
         </div>
 
         <!-- Création d'un utilisateur complet (admin) -->
         <form id="create-user-form" style="margin-top:0.75rem;">
-          <strong>Créer un utilisateur</strong>
+        <strong id="user-form-title">Create a user</strong>
 
-          <label>Prénom</label>
-          <input type="text" name="firstName" required>
+        <!-- champ caché pour savoir si on édite -->
+        <input type="hidden" name="userId" id="user-id">
 
-          <label>Nom</label>
-          <input type="text" name="lastName" required>
+        <label>First name</label>
+        <input type="text" name="firstName" required>
 
-          <label>Email</label>
-          <input type="email" name="email" required>
+        <label>Last name</label>
+        <input type="text" name="lastName" required>
 
-          <label>Mot de passe</label>
-          <input type="password" name="password" required>
+        <label>Email</label>
+        <input type="email" name="email" required>
 
-          <label>Académie (membre)</label>
-          <select name="academyMember">
-            <option value="false">Non</option>
-            <option value="true">Oui</option>
-          </select>
+        <label>Password</label>
+        <input type="password" name="password">
 
-          <label>Rôle initial</label>
-          <select name="role">
-            <option value="user">User</option>
-            <option value="teacher">Teacher</option>
-            <option value="moderator">Moderator</option>
-            <option value="admin">Admin</option>
-          </select>
+        <label>Credits</label>
+        <input
+          type="number"
+          id="user-credits-field"
+          name="credits"
+          min="0"
+          step="1"
+        >
 
-          <button type="submit" class="btn-primary">Créer</button>
-          <div class="small" id="create-user-status"></div>
-        </form>
+        <label>Academy code</label>
+        <select name="academyCode">
+          <option value="">None</option>
+          <option value="AK1">Academy 1 (4 credits)</option>
+          <option value="AK2">Academy 2 (8 credits)</option>
+          <option value="AK3">Academy 3 (12 credits)</option>
+        </select>
+
+        <label>Initial role</label>
+        <select name="role">
+          <option value="user">User</option>
+          <option value="moderator">Moderator</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <div style="margin-top:0.5rem;">
+          <button type="submit" class="btn-primary" id="user-save-btn">Create</button>
+          <button type="button" class="btn-secondary" id="user-cancel-edit" style="display:none;">
+            Cancel edit
+          </button>
+        </div>
+
+        <div class="small" id="create-user-status"></div>
+        </form> 
 
         <!-- Changement de mot de passe -->
         <form id="change-password-form" style="margin-top:0.5rem;">
-          <strong>Changer le mot de passe</strong>
-          <label>Email utilisateur</label>
+          <strong>Change password</strong>
+          <label>User email</label>
           <input type="email" name="email" required>
-          <label>Nouveau mot de passe</label>
+          <label>New password</label>
           <input type="password" name="newPassword" required>
-          <button type="submit" class="btn-primary">Modifier le mot de passe</button>
+          <button type="submit" class="btn-primary">Modify password</button>
           <div class="small" id="change-password-status"></div>
         </form>
 
         <!-- Liste + recherche -->
         <div style="margin-top:0.75rem;">
-          <strong>Tous les utilisateurs</strong>
+          <strong>All users</strong>
           <div style="margin-bottom:0.5rem;">
-            <input type="text" id="user-search" placeholder="Filtrer par email ou nom..." style="width:100%;max-width:300px;">
+            <input type="text" id="user-search" placeholder="Filter by email or name..." style="width:100%;max-width:300px;">
           </div>
-          <div id="all-users">Chargement...</div>
+          <div id="all-users">Loading...</div>
         </div>
 
         <!-- Permissions des modérateurs -->
         <div style="margin-top:0.75rem;">
-          <strong>Permissions des modérateurs</strong>
-          <div class="small">Cochez pour autoriser les actions.</div>
+          <strong>Permissions</strong>
+          <div class="small">Check to allow actions.</div>
           <div class="checkbox-row">
-            <label><input type="checkbox" id="perm-modo-edit-credits"> Autoriser les modérateurs à modifier les crédits</label>
-            <label><input type="checkbox" id="perm-modo-edit-password"> Autoriser les modérateurs à changer les mots de passe</label>
+            <label><input type="checkbox" id="perm-modo-edit-credits"> Allow moderators to edit credits</label>
+            <label><input type="checkbox" id="perm-modo-edit-password"> Allow moderators to change passwords</label>
           </div>
           <div class="small" id="permissions-status"></div>
         </div>
@@ -233,57 +252,58 @@
 
       <!-- Bloc crédits + sessions -->
       <section>
-        <h2>Crédits & sessions semaine</h2>
-        <div class="small">Affecter des crédits et créer les créneaux du planning.</div>
+        <h2>Crédits & events</h2>
+        <div class="small">Grant credits and create events for the week.</div>
 
         <!-- Don de crédits avec codes raison -->
         <form id="grant-credits-form">
-          <strong>Donner des crédits</strong>
-          <label>Email utilisateur</label>
+          <strong>Grant credits</strong>
+          <label>User email</label>
           <input type="email" name="email" placeholder="user@example.com" required>
 
-          <label>Montant (crédits)</label>
+          <label>Amount (credits)</label>
           <input type="number" name="amount" min="1" value="10" required>
 
-          <label>Code raison</label>
+          <label>Code</label>
           <select name="reasonCode">
-            <option value="">Choisir...</option>
-            <option value="AK1">AK1</option>
-            <option value="AK2">AK2</option>
-            <option value="AK3">AK3</option>
+            <option value="">Choose...</option>
+            <option value="AK1">Academy 1</option>
+            <option value="AK2">Academy 2</option>
+            <option value="AK3">Academy 3</option>
           </select>
 
-          <label>Raison libre (optionnelle)</label>
+          <label>Comments (option)</label>
           <input type="text" name="reasonText" placeholder="Pack surf, promo, etc.">
 
-          <button type="submit" class="btn-primary">Valider</button>
+          <button type="submit" class="btn-primary">Submit</button>
           <div class="small" id="grant-credits-status"></div>
         </form>
 
         <!-- Création de session -->
         <form id="create-session-form">
-          <strong>Créer une session</strong>
+          <strong>Create events</strong>
 
-          <label>Type d'activité</label>
+          <label>Activity type</label>
           <select name="activityTypeCode" required>
-            <option value="">Choisir...</option>
+            <option value="">Choose...</option>
             <option value="surf_beginner">Surf – Beginners</option>
             <option value="surf_intermediate">Surf – Intermediate</option>
             <option value="surf_advanced">Surf – Advanced</option>
-            <option value="surfskate">Surfskate / Surf treino</option>
+            <option value="surfskate_beginner">Surfskate – Beginners</option>
+            <option value="surfskate_inter_advanced">Surfskate – Intermediate/Advanced</option>
             <option value="street_skate">Street skate</option>
             <option value="bike_tour">Bike tour</option>
             <option value="surf_tip">Surf tip</option>
           </select>
 
-          <label>Semaine (lundi–dimanche)</label>
+          <label>Week (Monday–Sunday)</label>
           <select name="week" id="week-select" required>
-            <option value="">Choisir une semaine...</option>
+            <option value="">Choose a week...</option>
           </select>
 
-          <label>Jour de la semaine</label>
+          <label>Day of the week</label>
           <select name="day" required>
-            <option value="">Choisir...</option>
+            <option value="">Choose...</option>
             <option value="monday">Monday</option>
             <option value="tuesday">Tuesday</option>
             <option value="wednesday">Wednesday</option>
@@ -293,10 +313,10 @@
             <option value="sunday">Sunday</option>
           </select>
 
-          <label>Heure de début</label>
+          <label>Start time</label>
           <div class="inline-selects">
             <select name="startHour" required>
-              <option value="">Heure</option>
+              <option value="">Hour</option>
               <option value="7">07</option>
               <option value="8">08</option>
               <option value="9">09</option>
@@ -322,37 +342,68 @@
             </select>
           </div>
 
-          <label>Capacité</label>
-          <input type="number" name="capacity" min="1" value="8" required>
+          <label>Capacity</label>
+          <input type="number" name="capacity" min="1" value="5" required>
 
-          <label>Coût en crédits</label>
-          <input type="number" name="creditCost" min="0" value="8" required>
+          <label>Cost in credits</label>
+          <input type="number" name="creditCost" min="0" value="1" required>
 
-          <button type="submit" class="btn-secondary">Créer la session</button>
+          <button type="submit" class="btn-secondary">Create session</button>
           <div class="small" id="create-session-status"></div>
         </form>
 
         <hr style="margin:0.75rem 0;" />
 
         <!-- Liste des sessions -->
-        <strong>Sessions existantes</strong>
-        <div class="small">Liste des créneaux actuellement au planning.</div>
-        <div id="sessions-list" style="margin-top:0.5rem;">Chargement...</div>
+        <strong>Sessions</strong>
+        <div class="small">events on the schedule</div>
+
+        <!-- Filtres sessions -->
+        <div style="margin-top:0.5rem; margin-bottom:0.5rem;">
+          <label class="small">
+            Filter by week :
+            <select id="session-week-filter" style="margin-left:0.25rem;">
+              <option value="all">All weeks</option>
+            </select>
+          </label>
+          <div class="checkbox-row" style="margin-top:0.25rem;">
+            <label><input type="checkbox" class="day-filter" data-day="monday" checked> Monday</label>
+            <label><input type="checkbox" class="day-filter" data-day="tuesday" checked> Tuesday</label>
+            <label><input type="checkbox" class="day-filter" data-day="wednesday" checked> Wednesday</label>
+            <label><input type="checkbox" class="day-filter" data-day="thursday" checked> Thursday</label>
+            <label><input type="checkbox" class="day-filter" data-day="friday" checked> Friday</label>
+            <label><input type="checkbox" class="day-filter" data-day="saturday" checked> Saturday</label>
+            <label><input type="checkbox" class="day-filter" data-day="sunday" checked> Sunday</label>
+          </div>
+        </div>
+
+        <div id="sessions-list" style="margin-top:0.5rem;">Loading...</div>
       </section>
     </div>
   </main>
 
   <script>
+    function formatDateTimeUTC(iso) {
+      const d = new Date(iso);
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const min = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${dd}/${mm}/${yyyy} ${hh}h${min}`;
+    }
+
     (function () {
       const apiBase = 'http://localhost:3000/api';
 
-      // Auth en cours + cache des users + permissions modo (côté front)
+      // Auth + caches
       let auth = null;
       let cachedAllUsers = [];
       let modoPermissions = {
         editCredits: true,
         editPassword: false,
       };
+      let allSessions = [];
 
       // Références DOM
       const headerInfo = document.getElementById('header-info');
@@ -376,12 +427,96 @@
       const permModoEditPassword = document.getElementById('perm-modo-edit-password');
       const permissionsStatus = document.getElementById('permissions-status');
 
+      const sessionWeekFilter = document.getElementById('session-week-filter');
+      const dayFilterCheckboxes = document.querySelectorAll('.day-filter');
+        
+      let editingUserId = null;
+
+        function fillUserForm(user) {
+          editingUserId = user.id;
+          document.getElementById('user-id').value = user.id;
+
+          // Champs de base
+          createUserForm.elements['firstName'].value = user.first_name || '';
+          createUserForm.elements['lastName'].value = user.last_name || '';
+          createUserForm.elements['email'].value = user.email || '';
+
+          // Academy code
+          if (createUserForm.elements['academyCode']) {
+            createUserForm.elements['academyCode'].value = user.academy_code || '';
+          }
+
+          // Rôle
+          if (createUserForm.elements['role']) {
+            createUserForm.elements['role'].value = user.role || 'user';
+          }
+
+          // UI (titres, boutons)
+          document.getElementById('user-form-title').textContent = 'Edit user';
+          document.getElementById('user-save-btn').textContent = 'Save';
+          document.getElementById('user-cancel-edit').style.display = 'inline-block';
+
+          // Champ Credits (lecture + mémorisation de la valeur d'origine)
+          const creditsField = document.getElementById('user-credits-field');
+          if (creditsField) {
+            creditsField.dataset.original = '';
+            creditsField.value = '';
+
+            getUserCredits(user.id).then((credits) => {
+              creditsField.value = credits;
+              creditsField.dataset.original = String(credits);
+            });
+          }
+
+          // On laisse le champ password vide (jamais pré-rempli)
+          if (createUserForm.elements['password']) {
+            createUserForm.elements['password'].value = '';
+          }
+        }
+
+      function resetUserForm() {
+          editingUserId = null;
+          document.getElementById('user-id').value = '';
+          createUserForm.reset();
+
+          // Valeurs par défaut
+          if (createUserForm.elements['role']) {
+            createUserForm.elements['role'].value = 'user';
+          }
+          if (createUserForm.elements['academyCode']) {
+            createUserForm.elements['academyCode'].value = '';
+          }
+
+          // Champ Credits
+          const creditsField = document.getElementById('user-credits-field');
+          if (creditsField) {
+            creditsField.value = '';
+            creditsField.dataset.original = '';
+          }
+
+          document.getElementById('user-form-title').textContent = 'Create a user';
+          document.getElementById('user-save-btn').textContent = 'Create';
+          document.getElementById('user-cancel-edit').style.display = 'none';
+          createUserStatus.textContent = '';
+        }
+
+      // appelé depuis renderAllUsers quand on clique sur Edit
+      function startEditUser(user) {
+        fillUserForm(user);
+        // scroll vers le formulaire, optionnel
+        createUserForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      document.getElementById('user-cancel-edit').addEventListener('click', () => {
+        resetUserForm();
+      });
+
       // Retour au planning
       backBtn.addEventListener('click', () => {
         window.location.href = '/index.html';
       });
 
-      // Lecture / écriture de l'auth stockée
+      // Auth storage
       function loadAuthFromStorage() {
         try {
           const raw = window.localStorage.getItem('surfAuth');
@@ -397,7 +532,7 @@
         window.localStorage.setItem('surfAuth', JSON.stringify(auth));
       }
 
-      // Helper fetch JSON avec Authorization
+      // Helper fetch JSON
       async function fetchJson(path, options = {}) {
         const headers = {
           'Content-Type': 'application/json',
@@ -419,7 +554,7 @@
         return res.json();
       }
 
-      // Calcul du lundi d'une date donnée (UTC)
+      // Date utils
       function getMonday(date) {
         const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
         const day = d.getUTCDay(); // 0=Sunday
@@ -429,7 +564,6 @@
         return d;
       }
 
-      // ISO week string (YYYY-Wxx) à partir d'un lundi
       function isoWeekValue(monday) {
         const year = monday.getUTCFullYear();
         const oneJan = new Date(Date.UTC(year, 0, 1));
@@ -445,13 +579,60 @@
         return `${dd}/${mm}`;
       }
 
-      // Préremplir le select des semaines
+      function getMondayOfWeek(weekValue) {
+        const [yearStr, weekStr] = weekValue.split('-W');
+        const year = Number(yearStr);
+        const week = Number(weekStr);
+        const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+        const dow = simple.getUTCDay();
+        const mondayOffset = dow <= 4 ? 1 - dow : 8 - dow;
+        const monday = new Date(simple);
+        monday.setUTCDate(simple.getUTCDate() + mondayOffset);
+        monday.setUTCHours(0, 0, 0, 0);
+        return monday;
+      }
+
+      function dayOffset(dayKey) {
+        switch (dayKey) {
+          case 'monday': return 0;
+          case 'tuesday': return 1;
+          case 'wednesday': return 2;
+          case 'thursday': return 3;
+          case 'friday': return 4;
+          case 'saturday': return 5;
+          case 'sunday': return 6;
+          default: return 0;
+        }
+      }
+
+      function weekValueFromIso(iso) {
+        const d = new Date(iso);
+        const monday = getMonday(d);
+        return isoWeekValue(monday);
+      }
+
+      function dayKeyFromIso(iso) {
+        const d = new Date(iso);
+        const dow = d.getUTCDay();
+        switch (dow) {
+          case 1: return 'monday';
+          case 2: return 'tuesday';
+          case 3: return 'wednesday';
+          case 4: return 'thursday';
+          case 5: return 'friday';
+          case 6: return 'saturday';
+          case 0: return 'sunday';
+          default: return '';
+        }
+      }
+
+      // Préremplir select des semaines (création)
       function populateWeeks() {
         if (!weekSelect) {
           console.error('weekSelect introuvable');
           return;
         }
-        weekSelect.innerHTML = '<option value="">Choisir une semaine...</option>';
+        weekSelect.innerHTML = '<option value="">Choose a week...</option>';
 
         const today = new Date();
         const firstMonday = getMonday(today);
@@ -474,42 +655,7 @@
         }
       }
 
-      // Obtenir le lundi à partir d'une valeur de semaine ISO (YYYY-Wxx)
-      function getMondayOfWeek(weekValue) {
-        const [yearStr, weekStr] = weekValue.split('-W');
-        const year = Number(yearStr);
-        const week = Number(weekStr);
-        const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-        const dow = simple.getUTCDay();
-        const mondayOffset = dow <= 4 ? 1 - dow : 8 - dow;
-        const monday = new Date(simple);
-        monday.setUTCDate(simple.getUTCDate() + mondayOffset);
-        monday.setUTCHours(0, 0, 0, 0);
-        return monday;
-      }
-
-      function dayOffset(dayKey) {
-        switch (dayKey) {
-          case 'monday':
-            return 0;
-          case 'tuesday':
-            return 1;
-          case 'wednesday':
-            return 2;
-          case 'thursday':
-            return 3;
-          case 'friday':
-            return 4;
-          case 'saturday':
-            return 5;
-          case 'sunday':
-            return 6;
-          default:
-            return 0;
-        }
-      }
-
-      // Initialisation de la page admin
+      // Init
       async function init() {
         auth = loadAuthFromStorage();
         if (!auth) {
@@ -522,7 +668,6 @@
 
         headerInfo.textContent = auth.user.email + ' (' + auth.user.role + ') ';
 
-        // Seuls admin + moderator ont accès au backend
         if (auth.user.role !== 'admin' && auth.user.role !== 'moderator') {
           accessNotice.style.display = 'block';
           accessNotice.textContent =
@@ -530,9 +675,11 @@
           return;
         }
 
-        // Charger l'état initial des permissions (ici en mémoire, à persister si besoin)
         permModoEditCredits.checked = modoPermissions.editCredits;
         permModoEditPassword.checked = modoPermissions.editPassword;
+
+        // Ajuster l'état du champ Credits selon rôle + permissions
+        updateCreditsFieldMode();
 
         accessNotice.style.display = 'none';
         adminContent.style.display = 'grid';
@@ -543,7 +690,7 @@
         loadSessions();
       }
 
-      // Chargement des utilisateurs (pending + tous)
+      // Users
       async function loadUsers() {
         pendingUsersDiv.textContent = 'Chargement...';
         allUsersDiv.textContent = 'Chargement...';
@@ -561,7 +708,6 @@
         }
       }
 
-      // Rendu des comptes en attente + bouton Activer
       function renderPendingUsers(users) {
         if (!users.length) {
           pendingUsersDiv.innerHTML = '<div class="small">Aucun compte en attente.</div>';
@@ -571,7 +717,7 @@
         table.innerHTML = `
           <thead>
             <tr>
-              <th>Email</th><th>Nom</th><th>Académie</th><th>Actions</th>
+              <th>Email</th><th>Name</th><th>Academy</th><th>Actions</th>
             </tr>
           </thead>
         `;
@@ -581,8 +727,8 @@
           tr.innerHTML = `
             <td>${u.email}</td>
             <td>${u.first_name} ${u.last_name}</td>
-            <td>${u.academy_member ? 'Oui' : 'Non'}</td>
-            <td><button class="btn-primary" data-user-id="${u.id}">Activer</button></td>
+            <td>${u.academy_member ? 'Yes' : 'No'}</td>
+            <td><button class="btn-primary" data-user-id="${u.id}">Activate</button></td>
           `;
           tbody.appendChild(tr);
         });
@@ -590,7 +736,6 @@
         pendingUsersDiv.innerHTML = '';
         pendingUsersDiv.appendChild(table);
 
-        // Activation via /users/:id/activate
         tbody.querySelectorAll('button[data-user-id]').forEach((btn) => {
           btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-user-id');
@@ -607,7 +752,28 @@
         });
       }
 
-      // Rendu de tous les users avec filtre texte
+         // cache pour les wallets afin d'éviter trop d'appels
+      const userWalletCache = new Map();
+
+      async function getUserCredits(userId) {
+        if (userWalletCache.has(userId)) {
+          return userWalletCache.get(userId);
+        }
+        try {
+          const wallet = await fetchJson('/credits/wallet/' + userId);
+          const balance = wallet && typeof wallet.balance_credits === 'number'
+            ? wallet.balance_credits
+            : 0;
+          userWalletCache.set(userId, balance);
+          return balance;
+        } catch (e) {
+          console.error('Error fetching wallet for user', userId, e);
+          userWalletCache.set(userId, 0);
+          return 0;
+        }
+      }
+
+
       function renderAllUsers(users, searchTerm = '') {
         const normalized = searchTerm.trim().toLowerCase();
         const filtered = normalized
@@ -623,75 +789,176 @@
           allUsersDiv.innerHTML = '<div class="small">Aucun utilisateur.</div>';
           return;
         }
+
         const table = document.createElement('table');
         table.innerHTML = `
           <thead>
             <tr>
-              <th>Email</th><th>Nom</th><th>Rôle</th><th>Status</th>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Credits</th>
+              <th>Academy</th>
+              <th>Actions</th>
             </tr>
           </thead>
         `;
         const tbody = document.createElement('tbody');
+
         filtered.forEach((u) => {
           const tr = document.createElement('tr');
+          tr.dataset.userId = u.id;
+
+          // On affiche academy_code (AK1/AK2/AK3) ou vide si null
+          const academyLabel = u.academy_code || '';
+
           tr.innerHTML = `
             <td>${u.email}</td>
             <td>${u.first_name} ${u.last_name}</td>
             <td>${u.role}</td>
             <td>${u.status}</td>
+            <td class="user-credits">...</td>
+            <td>${academyLabel}</td>
+            <td>
+              <button class="btn-secondary btn-edit-user" data-user-id="${u.id}">
+                Edit
+              </button>
+              <button class="btn-primary btn-delete-user" data-user-id="${u.id}">
+                Delete
+              </button>
+            </td>
           `;
           tbody.appendChild(tr);
+
+          // Charger les crédits en asynchrone (optionnel)
+          getUserCredits(u.id).then((credits) => {
+            const creditsCell = tr.querySelector('.user-credits');
+            if (creditsCell) {
+              creditsCell.textContent = credits;
+            }
+          });
         });
+
         table.appendChild(tbody);
         allUsersDiv.innerHTML = '';
         allUsersDiv.appendChild(table);
+
+        // Boutons Edit
+        tbody.querySelectorAll('.btn-edit-user').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-user-id');
+            const user = cachedAllUsers.find((u) => u.id === id);
+            if (!user) return;
+            startEditUser(user);
+          });
+        });
+
+        // Boutons Delete
+        tbody.querySelectorAll('.btn-delete-user').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-user-id');
+            const user = cachedAllUsers.find((u) => u.id === id);
+            if (!user) return;
+            if (!confirm(`Supprimer l'utilisateur ${user.email} ?`)) return;
+
+            try {
+              await fetchJson('/users/' + id, { method: 'DELETE' });
+              await loadUsers();
+            } catch (e) {
+              console.error(e);
+              alert('Erreur suppression: ' + e.message);
+            }
+          });
+        });
       }
 
-      // Filtre sur la liste
       userSearchInput.addEventListener('input', (e) => {
         renderAllUsers(cachedAllUsers, e.target.value);
       });
 
-      // Création d'utilisateur via /auth/register + registerUser
-      createUserForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        createUserStatus.textContent = 'En cours...';
+     createUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      createUserStatus.textContent = 'En cours...';
 
-        const form = new FormData(createUserForm);
-        const payload = {
-          firstName: form.get('firstName'),
-          lastName: form.get('lastName'),
-          email: form.get('email'),
-          password: form.get('password'),
-          academyMember: form.get('academyMember') === 'true',
-          // Le rôle choisi ici peut être utilisé ensuite côté backend
-          // soit via une route dédiée, soit via un autre service
-          role: form.get('role'),
-        };
+      const form = new FormData(createUserForm);
+      const userId = form.get('userId'); // hidden input
 
-        try {
-          // Actuellement, registerUser crée toujours un "user" simple (role user).
-          // Si tu veux utiliser payload.role, il faudra adapter registerUser
-          // ou créer une route dédiée admin dans ton backend.
+      const payload = {
+        firstName: form.get('firstName'),
+        lastName: form.get('lastName'),
+        email: form.get('email'),
+        academyCode: form.get('academyCode') || null,
+        role: form.get('role'),
+      };
+
+      const password = form.get('password');
+      // En création : password obligatoire
+      if (!userId && (!password || !password.trim())) {
+        createUserStatus.textContent = 'Password is required to create a new user.';
+        return;
+      }
+      if (password && password.trim().length > 0) {
+        payload.password = password;
+      }
+
+      // Gestion des crédits (wallet)
+      const creditsField = document.getElementById('user-credits-field');
+      const newCredits =
+        creditsField && creditsField.value !== ''
+          ? Number(creditsField.value)
+          : null;
+      const originalCredits =
+        creditsField && creditsField.dataset.original !== undefined
+          ? Number(creditsField.dataset.original || 0)
+          : null;
+
+      try {
+        if (userId) {
+          // Mode édition : update profil + wallet
+
+          // 1) Update user
+          await fetchJson('/users/' + userId, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+
+          // 2) Update wallet si différence
+          if (
+            creditsField &&
+            newCredits !== null &&
+            !Number.isNaN(newCredits) &&
+            originalCredits !== null &&
+            newCredits !== originalCredits
+          ) {
+            await fetchJson('/users/' + userId + '/wallet', {
+              method: 'PUT',
+              body: JSON.stringify({ balance: newCredits }),
+            });
+          }
+
+          createUserStatus.textContent = 'User updated.';
+        } else {
+          // Mode création : uniquement le user (wallet à 0 côté backend)
           await fetchJson('/auth/register', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
-          createUserStatus.textContent = 'Utilisateur créé (statut pending).';
-          createUserForm.reset();
-          await loadUsers();
-        } catch (err) {
-          console.error(err);
-          createUserStatus.textContent = 'Erreur: ' + err.message;
+          createUserStatus.textContent = 'User created (pending status).';
         }
-      });
 
-      // Changement de mot de passe via /users/:id/password
+        resetUserForm();
+        await loadUsers();
+      } catch (err) {
+        console.error(err);
+        createUserStatus.textContent = 'Error: ' + err.message;
+      }
+    });
+
       changePasswordForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         changePasswordStatus.textContent = 'En cours...';
 
-        // Modérateur bloqué si case décochée
         if (auth.user.role === 'moderator' && !permModoEditPassword.checked) {
           changePasswordStatus.textContent =
             'Action non autorisée pour les modérateurs (mot de passe).';
@@ -711,26 +978,49 @@
             method: 'POST',
             body: JSON.stringify({ newPassword }),
           });
-          changePasswordStatus.textContent = 'Mot de passe modifié.';
+          changePasswordStatus.textContent = 'Password changed.';
           changePasswordForm.reset();
         } catch (e) {
           console.error(e);
-          changePasswordStatus.textContent = 'Erreur: ' + e.message;
+          changePasswordStatus.textContent = 'Error: ' + e.message;
         }
       });
 
-      // Gestion des permissions modo (côté front; à persister si besoin)
       permModoEditCredits.addEventListener('change', () => {
         modoPermissions.editCredits = permModoEditCredits.checked;
-        permissionsStatus.textContent = 'Permissions modérateur mises à jour (crédits).';
+        permissionsStatus.textContent = 'Moderator permissions updated (credits).';
+
+        // Met à jour l'état du champ Credits (enabled/disabled)
+        updateCreditsFieldMode();
       });
 
       permModoEditPassword.addEventListener('change', () => {
         modoPermissions.editPassword = permModoEditPassword.checked;
-        permissionsStatus.textContent = 'Permissions modérateur mises à jour (mot de passe).';
+        permissionsStatus.textContent = 'Moderator permissions updated (password).';
       });
 
-      // Don de crédits avec contrôle des droits des modérateurs
+     function updateCreditsFieldMode() {
+        const creditsField = document.getElementById('user-credits-field');
+        if (!creditsField) return;
+
+        // Si pas d'auth, on désactive par sécurité
+        if (!auth) {
+          creditsField.disabled = true;
+          return;
+        }
+
+        if (auth.user.role === 'admin') {
+          // Admin : toujours editable
+          creditsField.disabled = false;
+        } else if (auth.user.role === 'moderator') {
+          // Modo : editable seulement si autorisé
+          creditsField.disabled = !modoPermissions.editCredits;
+        } else {
+          // Autres rôles : lecture seule
+          creditsField.disabled = true;
+        }
+      }
+     
       grantForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         grantStatus.textContent = 'En cours...';
@@ -760,15 +1050,15 @@
               reasonText,
             }),
           });
-          grantStatus.textContent = 'Crédits ajoutés.';
+          grantStatus.textContent = 'Credits added.';
           grantForm.reset();
         } catch (e) {
           console.error(e);
-          grantStatus.textContent = 'Erreur: ' + e.message;
+          grantStatus.textContent = 'Error: ' + e.message;
         }
       });
 
-      // Création de session via /sessions
+      // Sessions
       sessionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         sessionStatus.textContent = 'En cours...';
@@ -803,101 +1093,212 @@
             }),
           });
           sessionStatus.textContent =
-            'Session créée pour ' + dayVal + ' à ' +
+            'Session created for ' + dayVal + ' at ' +
             startHour + 'h' + startMinute.toString().padStart(2, '0');
           loadSessions();
         } catch (e) {
           console.error(e);
-          sessionStatus.textContent = 'Erreur: ' + e.message;
+          sessionStatus.textContent = 'Error: ' + e.message;
         }
       });
 
-      // Chargement et affichage des sessions existantes
       async function loadSessions() {
         const container = document.getElementById('sessions-list');
         if (!container) return;
 
-        container.textContent = 'Chargement...';
+        container.textContent = 'Loading...';
 
         try {
           const sessions = await fetchJson('/sessions');
-          if (!sessions.length) {
-            container.textContent = 'Aucune session pour le moment.';
+          allSessions = sessions || [];
+
+          if (!allSessions.length) {
+            container.textContent = 'No sessions available at the moment.';
             return;
           }
 
-          const table = document.createElement('table');
-          table.innerHTML = `
-            <thead>
-              <tr>
-                <th>Activité</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Capacité</th>
-                <th>Crédits</th>
-                <th>Réservations</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-          `;
-          const tbody = document.createElement('tbody');
-
-          sessions.forEach((s) => {
-            const tr = document.createElement('tr');
-            const start = new Date(s.starts_at).toLocaleString();
-            const end = new Date(s.ends_at).toLocaleString();
-
-            tr.innerHTML = `
-              <td>[${s.activity_code}] ${s.activity_label}</td>
-              <td>${start}</td>
-              <td>${end}</td>
-              <td>${s.capacity}</td>
-              <td>${s.credit_cost}</td>
-              <td>${s.booked_count}</td>
-              <td><button class="btn-primary" data-session-id="${s.id}">Supprimer</button></td>
-            `;
-            tbody.appendChild(tr);
-          });
-
-          table.appendChild(tbody);
-          container.innerHTML = '';
-          container.appendChild(table);
-
-          // Bouton suppression de session avec confirmation
-          tbody.querySelectorAll('button[data-session-id]').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-              const id = btn.getAttribute('data-session-id');
-              const row = btn.closest('tr');
-              const bookedCountCell = row ? row.children[5] : null;
-              const bookedCount = bookedCountCell
-                ? Number(bookedCountCell.textContent || '0')
-                : 0;
-
-              let message = 'Supprimer cette session ?';
-              if (bookedCount > 0) {
-                message = `Cette session a ${bookedCount} réservation(s). Supprimer quand même ?`;
-              }
-
-              if (!confirm(message)) return;
-
-              btn.disabled = true;
-              try {
-                await fetchJson('/sessions/' + id, { method: 'DELETE' });
-                await loadSessions();
-              } catch (e) {
-                console.error(e);
-                alert('Erreur suppression: ' + e.message);
-                btn.disabled = false;
-              }
-            });
-          });
+          populateSessionWeekFilter(allSessions);
+          renderSessionsWithFilters();
         } catch (e) {
           console.error(e);
-          container.textContent = 'Erreur lors du chargement des sessions.';
+          container.textContent = 'Error loading sessions.';
         }
       }
 
-      // Lancer l’init au chargement
+      function populateSessionWeekFilter(sessions) {
+        if (!sessionWeekFilter) return;
+
+        const currentValue = sessionWeekFilter.value || 'all';
+        sessionWeekFilter.innerHTML = '<option value="all">All Weeks</option>';
+
+        const weekSet = new Set();
+        sessions.forEach((s) => {
+          const weekVal = weekValueFromIso(s.starts_at);
+          weekSet.add(weekVal);
+        });
+
+        const sortedWeeks = Array.from(weekSet).sort();
+
+        sortedWeeks.forEach((weekVal) => {
+          const monday = getMondayOfWeek(weekVal);
+          const sunday = new Date(monday);
+          sunday.setUTCDate(monday.getUTCDate() + 6);
+
+          const label = `Week ${formatDate(monday)} – ${formatDate(sunday)} (${weekVal})`;
+          const opt = document.createElement('option');
+          opt.value = weekVal;
+          opt.textContent = label;
+          sessionWeekFilter.appendChild(opt);
+        });
+
+        if (sortedWeeks.includes(currentValue)) {
+          sessionWeekFilter.value = currentValue;
+        } else {
+          sessionWeekFilter.value = 'all';
+        }
+      }
+
+      function renderSessionsWithFilters() {
+        const container = document.getElementById('sessions-list');
+        if (!container) return;
+
+        if (!allSessions.length) {
+          container.textContent = 'Aucune session pour le moment.';
+          return;
+        }
+
+        const selectedWeek = sessionWeekFilter ? sessionWeekFilter.value : 'all';
+
+        const activeDays = new Set();
+        dayFilterCheckboxes.forEach((cb) => {
+          if (cb.checked) {
+            activeDays.add(cb.getAttribute('data-day'));
+          }
+        });
+
+        const filtered = allSessions.filter((s) => {
+          const weekVal = weekValueFromIso(s.starts_at);
+          const dayKey = dayKeyFromIso(s.starts_at);
+
+          if (selectedWeek !== 'all' && weekVal !== selectedWeek) {
+            return false;
+          }
+          if (!activeDays.has(dayKey)) {
+            return false;
+          }
+          return true;
+        });
+
+        if (!filtered.length) {
+          container.textContent = 'Aucune session ne correspond aux filtres.';
+          return;
+        }
+
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Activity</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Capacity</th>
+              <th>Credits</th>
+              <th>Bookings</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+        `;
+        const tbody = document.createElement('tbody');
+
+        filtered.forEach((s) => {
+          const tr = document.createElement('tr');
+          const start = formatDateTimeUTC(s.starts_at);
+          const end = formatDateTimeUTC(s.ends_at);
+
+        tr.innerHTML = `
+          <td>[${s.activity_code}] ${s.activity_label}</td>
+          <td>${start}</td>
+          <td>${end}</td>
+          <td>${s.capacity}</td>
+          <td>${s.credit_cost}</td>
+          <td>${s.booked_count}</td>
+          <td>
+            <button
+              class="btn-secondary btn-edit-session"
+              data-session-id="${s.id}"
+              data-session-label="${s.activity_label}"
+            >
+              Edit
+            </button>
+            <button
+              class="btn-primary btn-delete-session"
+              data-session-id="${s.id}"
+            >
+              Delete
+            </button>
+          </td>
+        `;
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        container.innerHTML = '';
+        container.appendChild(table);
+
+        // Boutons suppression
+        tbody.querySelectorAll('.btn-delete-session').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-session-id');
+            const row = btn.closest('tr');
+            const bookedCountCell = row ? row.children[5] : null;
+            const bookedCount = bookedCountCell
+              ? Number(bookedCountCell.textContent || '0')
+              : 0;
+
+            let message = 'Supprimer cette session ?';
+            if (bookedCount > 0) {
+              message = `Cette session a ${bookedCount} réservation(s). Supprimer quand même ?`;
+            }
+
+            if (!confirm(message)) return;
+
+            btn.disabled = true;
+            try {
+              await fetchJson('/sessions/' + id, { method: 'DELETE' });
+              await loadSessions();
+            } catch (e) {
+              console.error(e);
+              alert('Erreur suppression: ' + e.message);
+              btn.disabled = false;
+            }
+          });
+        });
+
+        // Boutons édition
+        tbody.querySelectorAll('.btn-edit-session').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-session-id');
+            const label = btn.getAttribute('data-session-label') || 'Session';
+            // Ouvrir un nouvel onglet vers la page d'édition
+            const url = `/session-edit.html?id=${encodeURIComponent(id)}`;
+            window.open(url, '_blank');
+            // Le titre de l'onglet sera géré dans session-edit.html via document.title = label
+          });
+        });
+      }
+
+      if (sessionWeekFilter) {
+        sessionWeekFilter.addEventListener('change', () => {
+          renderSessionsWithFilters();
+        });
+      }
+
+      dayFilterCheckboxes.forEach((cb) => {
+        cb.addEventListener('change', () => {
+          renderSessionsWithFilters();
+        });
+      });
+
       init();
     })();
   </script>

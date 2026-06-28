@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit session</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+    main {
+      max-width: 720px;
+      margin: 1.5rem auto;
+      padding: 0 1rem 2rem;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+    }
+    h1 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.9rem;
+      margin-top: 0.2rem;
+    }
+    fieldset {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      padding: 0.6rem 0.8rem 0.8rem;
+      margin-top: 0.75rem;
+    }
+    fieldset legend {
+      font-size: 0.8rem;
+      padding: 0 0.25rem;
+      color: #6b7280;
+    }
+    .small {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+    .small.error {
+      color: #b91c1c;
+    }
+    .small.success {
+      color: #166534;
+    }
+    button {
+      margin-top: 0.75rem;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.9rem;
+      border-radius: 0.25rem;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .inline-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .inline-row .field {
+      flex: 1;
+    }
+    .attendees {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .attendee-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .attendee-row span {
+      flex: 1;
+    }
+    .attendee-row button {
+      margin-top: 0;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+      background: #ef4444;
+      color: #ffffff;
+    }
+    .attendee-row button:hover {
+      background: #b91c1c;
+    }
+    .muted {
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="page-title">Edit session</h1>
+    <div id="status" class="small">Loading...</div>
+
+    <form id="edit-session-form" style="display:none;">
+      <!-- Activity dropdown -->
+      <fieldset>
+        <legend>Activity</legend>
+        <label for="activity_type">Activity</label>
+        <select name="activity_type" id="activity_type"></select>
+        <div class="small">
+          Choose the activity type for this session.
+        </div>
+      </fieldset>
+
+      <!-- Start date: input + formatted text -->
+      <fieldset>
+        <legend>Date & time (UTC)</legend>
+        <label for="starts_at">Start date</label>
+        <input type="datetime-local" name="starts_at" id="starts_at">
+        <div class="small">
+          Displayed as: <span id="starts_at_display" class="muted">–</span>
+        </div>
+      </fieldset>
+
+      <!-- Capacity & credits in one row -->
+      <fieldset>
+        <legend>Capacity & credits</legend>
+        <div class="inline-row">
+          <div class="field">
+            <label for="capacity">Capacity</label>
+            <input type="number" name="capacity" id="capacity" min="1" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="credit_cost">Credit cost</label>
+            <input type="number" name="credit_cost" id="credit_cost" min="0" inputmode="numeric">
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Attendees list -->
+      <fieldset>
+        <legend>Attendees</legend>
+        <div id="attendees-container" class="attendees">
+          <div class="small muted">No attendees.</div>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn-primary">Save</button>
+      <div id="save-status" class="small"></div>
+    </form>
+  </main>
+
+  <script>
+    (function () {
+      const apiBase = 'http://localhost:3000/api';
+
+      let auth = null;
+      const statusEl = document.getElementById('status');
+      const saveStatusEl = document.getElementById('save-status');
+      const form = document.getElementById('edit-session-form');
+      const pageTitle = document.getElementById('page-title');
+
+      const activitySelect = document.getElementById('activity_type');
+      const startsAtInput = document.getElementById('starts_at');
+      const startsAtDisplay = document.getElementById('starts_at_display');
+      const capacityInput = document.getElementById('capacity');
+      const creditCostInput = document.getElementById('credit_cost');
+      const attendeesContainer = document.getElementById('attendees-container');
+
+      function loadAuthFromStorage() {
+        try {
+          const raw = window.localStorage.getItem('surfAuth');
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      async function fetchJson(path, options = {}) {
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(options.headers || {}),
+        };
+        if (auth && auth.token) {
+          headers.Authorization = 'Bearer ' + auth.token;
+        }
+        const res = await fetch(apiBase + path, {
+          ...options,
+          headers,
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || res.statusText);
+        }
+        return res.json();
+      }
+
+      // ISO -> datetime-local (UTC)
+      function toInputDateTimeLocal(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const yyyy = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        const hh = String(d.getUTCHours()).padStart(2, '0');
+        const min = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+      }
+
+      // datetime-local (UTC) -> ISO
+      function fromInputDateTimeLocal(val) {
+        if (!val) return null;
+        return new Date(val + 'Z').toISOString();
+      }
+
+      // Human-readable English date (Monday, 12 August 2026, 14:00)
+      function formatHumanDate(iso) {
+        if (!iso) return '–';
+        const d = new Date(iso);
+        return d.toLocaleString('en-GB', {
+          weekday: 'long',
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+      }
+
+      function updateStartsAtDisplay() {
+        const iso = fromInputDateTimeLocal(startsAtInput.value);
+        startsAtDisplay.textContent = formatHumanDate(iso);
+      }
+
+      function setSaveStatus(message, type) {
+        saveStatusEl.textContent = message || '';
+        saveStatusEl.classList.remove('error', 'success');
+        if (type === 'error') {
+          saveStatusEl.classList.add('error');
+        } else if (type === 'success') {
+          saveStatusEl.classList.add('success');
+        }
+      }
+
+      // Populate activity dropdown from /activity-types
+      // with custom filtering:
+      // - ensure only one 'bike_tour'
+      // - replace any 'skate_lesson' with two entries:
+      //   'skate_lesson_beginner' and 'skate_lesson_inter_advanced'
+      async function loadActivityTypes(currentCode) {
+        const types = await fetchJson('/activity-types');
+
+        // 1) Remove duplicate bike_tour based on code
+        const seenBikeTour = false;
+        const deduped = [];
+        let bikeSeen = false;
+
+        for (const t of types) {
+          if (t.code === 'bike_tour') {
+            if (bikeSeen) {
+              // skip duplicates
+              continue;
+            }
+            bikeSeen = true;
+            deduped.push(t);
+          } else if (t.code === 'skate_lesson') {
+            // on ne pousse pas skate_lesson ici,
+            // on le gérera à l'étape suivante (on veut seulement les variantes)
+            continue;
+          } else {
+            deduped.push(t);
+          }
+        }
+
+        // 2) Ajouter explicitement les deux variantes de skate lesson
+        // (si tu veux qu'elles existent toujours dans le select)
+        deduped.push({
+          code: 'skate_lesson_beginner',
+          label: 'Skate lesson – Beginner',
+        });
+        deduped.push({
+          code: 'skate_lesson_inter_advanced',
+          label: 'Skate lesson – Inter & Advanced',
+        });
+
+        // 3) Remplir le select avec la liste finale
+        activitySelect.innerHTML = '';
+        deduped.forEach((t) => {
+          const opt = document.createElement('option');
+          opt.value = t.code;
+          opt.textContent = t.label;
+
+          if (t.code === currentCode) {
+            opt.selected = true;
+          }
+
+          activitySelect.appendChild(opt);
+        });
+      }
+
+      // Load attendees list for this session
+      async function loadAttendees(sessionId) {
+        // Requires an endpoint like GET /sessions/:id/attendees
+        try {
+          const attendees = await fetchJson(`/sessions/${sessionId}/attendees`);
+          attendeesContainer.innerHTML = '';
+
+          if (!attendees || !attendees.length) {
+            const empty = document.createElement('div');
+            empty.className = 'small muted';
+            empty.textContent = 'No attendees.';
+            attendeesContainer.appendChild(empty);
+            return;
+          }
+
+          attendees.forEach((a) => {
+            const row = document.createElement('div');
+            row.className = 'attendee-row';
+
+            const label = document.createElement('span');
+            label.textContent = `${a.firstName} ${a.lastName} (${a.email || a.id})`;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = 'Remove';
+            btn.addEventListener('click', async () => {
+              try {
+                // Uses your roster API: action = 'remove'
+                await fetchJson(`/sessions/${sessionId}/roster`, {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    userId: a.id,
+                    action: 'remove',
+                  }),
+                });
+                // Reload attendees list
+                await loadAttendees(sessionId);
+              } catch (e) {
+                console.error(e);
+                alert('Failed to remove attendee: ' + (e.message || 'Unknown error'));
+              }
+            });
+
+            row.appendChild(label);
+            row.appendChild(btn);
+            attendeesContainer.appendChild(row);
+          });
+        } catch (e) {
+          console.error(e);
+          attendeesContainer.innerHTML =
+            '<div class="small error">Failed to load attendees.</div>';
+        }
+      }
+
+      async function init() {
+        auth = loadAuthFromStorage();
+        if (!auth || (auth.user.role !== 'admin' && auth.user.role !== 'moderator')) {
+          statusEl.textContent = 'Access denied: admin or moderator only.';
+          return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if (!id) {
+          statusEl.textContent = 'Missing session ID in URL.';
+          return;
+        }
+
+        try {
+          statusEl.textContent = 'Loading session...';
+          const session = await fetchJson('/sessions/' + id);
+
+          document.title = `Edit – ${session.activity_label}`;
+          pageTitle.textContent = `Edit session: ${session.activity_label}`;
+
+          // Load activity types and select current one
+          await loadActivityTypes(session.activity_code);
+
+          // Fill start date
+          startsAtInput.value = toInputDateTimeLocal(session.starts_at);
+          updateStartsAtDisplay();
+
+          // Capacity & credits
+          capacityInput.value = session.capacity;
+          creditCostInput.value = session.credit_cost;
+
+          // Attendees
+          await loadAttendees(id);
+
+          form.style.display = 'block';
+          statusEl.textContent = '';
+        } catch (e) {
+          console.error(e);
+          statusEl.textContent =
+            'Error loading session: ' + (e.message || 'Error');
+        }
+      }
+
+      startsAtInput.addEventListener('input', updateStartsAtDisplay);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        setSaveStatus('Saving...', null);
+
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if (!id) {
+          setSaveStatus('Missing session ID.', 'error');
+          return;
+        }
+
+        const startsIso = fromInputDateTimeLocal(startsAtInput.value);
+        const capacity = Number(capacityInput.value);
+        const creditCost = Number(creditCostInput.value);
+
+        if (!startsIso) {
+          setSaveStatus('Please provide a start date.', 'error');
+          return;
+        }
+        if (!Number.isFinite(capacity) || capacity < 1) {
+          setSaveStatus('Invalid capacity (minimum 1).', 'error');
+          return;
+        }
+        if (!Number.isFinite(creditCost) || creditCost < 0) {
+          setSaveStatus('Invalid credit cost (minimum 0).', 'error');
+          return;
+        }
+
+        const payload = {
+          activityTypeCode: activitySelect.value,
+          startsAt: startsIso,
+          capacity,
+          creditCost,
+        };
+
+        try {
+          await fetchJson('/sessions/' + id, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+          setSaveStatus('Session updated.', 'success');
+        } catch (e) {
+          console.error(e);
+          setSaveStatus(
+            'Error while saving: ' + (e.message || 'Error'),
+            'error'
+          );
+        }
+      });
+
+      init();
+    })();
+  </script>
+</body>
+</html>
