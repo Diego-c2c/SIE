@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Surf It Easy – Admin backend</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+    header {
+      padding: 0.75rem 1.25rem;
+      background: #0f172a;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    main {
+      max-width: 1100px;
+      margin: 1.5rem auto;
+      padding: 0 1rem 2rem;
+    }
+    .notice {
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      background: #fee2e2;
+      color: #b91c1c;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+    }
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: 2fr 1.3fr;
+      }
+    }
+    section {
+      background: #ffffff;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+    }
+    section h2 {
+      margin-top: 0;
+      font-size: 0.95rem;
+    }
+    .small {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 0.35rem 0.4rem;
+      text-align: left;
+    }
+    th {
+      background: #f3f4f6;
+    }
+    button {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      border-radius: 0.25rem;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-secondary {
+      background: #111827;
+      color: #f9fafb;
+    }
+    .btn-secondary:hover {
+      background: #000000;
+    }
+    input, select {
+      padding: 0.3rem 0.4rem;
+      font-size: 0.85rem;
+      margin-bottom: 0.35rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    label {
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      display: block;
+    }
+    form {
+      margin-bottom: 0.75rem;
+    }
+    .inline-selects {
+      display: flex;
+      gap: 0.35rem;
+    }
+    .inline-selects select {
+      flex: 1;
+    }
+    .checkbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .checkbox-row label {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 0;
+    }
+    .checkbox-row input[type="checkbox"] {
+      margin-right: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Surf It Easy – Admin backend</h1>
+    <div>
+      <span id="header-info"></span>
+      <button id="back-to-index" style="margin-left:0.5rem;padding:0.3rem 0.6rem;font-size:0.8rem;border:none;border-radius:0.25rem;background:#2563eb;color:#fff;cursor:pointer;">
+        Retour au planning
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Message si l'utilisateur n'a pas les droits -->
+    <div id="access-notice" class="notice" style="display:none;">
+      Accès refusé : cette page est réservée aux administrateurs et modérateurs.
+      Connectez-vous depuis la page planning avec un compte admin/modo.
+    </div>
+
+    <div class="grid" id="admin-content" style="display:none;">
+      <!-- Bloc utilisateurs -->
+      <section>
+        <h2>Utilisateurs</h2>
+        <div class="small">Validation des comptes, création, rôles et recherche.</div>
+
+        <!-- Comptes en attente -->
+        <div style="margin-top:0.5rem;">
+          <strong>En attente d'activation</strong>
+          <div id="pending-users">Chargement...</div>
+        </div>
+
+        <!-- Création d'un utilisateur complet (admin) -->
+        <form id="create-user-form" style="margin-top:0.75rem;">
+          <strong>Créer un utilisateur</strong>
+
+          <label>Prénom</label>
+          <input type="text" name="firstName" required>
+
+          <label>Nom</label>
+          <input type="text" name="lastName" required>
+
+          <label>Email</label>
+          <input type="email" name="email" required>
+
+          <label>Mot de passe</label>
+          <input type="password" name="password" required>
+
+          <label>Académie (membre)</label>
+          <select name="academyMember">
+            <option value="false">Non</option>
+            <option value="true">Oui</option>
+          </select>
+
+          <label>Rôle initial</label>
+          <select name="role">
+            <option value="user">User</option>
+            <option value="teacher">Teacher</option>
+            <option value="moderator">Moderator</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          <button type="submit" class="btn-primary">Créer</button>
+          <div class="small" id="create-user-status"></div>
+        </form>
+
+        <!-- Changement de mot de passe -->
+        <form id="change-password-form" style="margin-top:0.5rem;">
+          <strong>Changer le mot de passe</strong>
+          <label>Email utilisateur</label>
+          <input type="email" name="email" required>
+          <label>Nouveau mot de passe</label>
+          <input type="password" name="newPassword" required>
+          <button type="submit" class="btn-primary">Modifier le mot de passe</button>
+          <div class="small" id="change-password-status"></div>
+        </form>
+
+        <!-- Liste + recherche -->
+        <div style="margin-top:0.75rem;">
+          <strong>Tous les utilisateurs</strong>
+          <div style="margin-bottom:0.5rem;">
+            <input type="text" id="user-search" placeholder="Filtrer par email ou nom..." style="width:100%;max-width:300px;">
+          </div>
+          <div id="all-users">Chargement...</div>
+        </div>
+
+        <!-- Permissions des modérateurs -->
+        <div style="margin-top:0.75rem;">
+          <strong>Permissions des modérateurs</strong>
+          <div class="small">Cochez pour autoriser les actions.</div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" id="perm-modo-edit-credits"> Autoriser les modérateurs à modifier les crédits</label>
+            <label><input type="checkbox" id="perm-modo-edit-password"> Autoriser les modérateurs à changer les mots de passe</label>
+          </div>
+          <div class="small" id="permissions-status"></div>
+        </div>
+      </section>
+
+      <!-- Bloc crédits + sessions -->
+      <section>
+        <h2>Crédits & sessions semaine</h2>
+        <div class="small">Affecter des crédits et créer les créneaux du planning.</div>
+
+        <!-- Don de crédits avec codes raison -->
+        <form id="grant-credits-form">
+          <strong>Donner des crédits</strong>
+          <label>Email utilisateur</label>
+          <input type="email" name="email" placeholder="user@example.com" required>
+
+          <label>Montant (crédits)</label>
+          <input type="number" name="amount" min="1" value="10" required>
+
+          <label>Code raison</label>
+          <select name="reasonCode">
+            <option value="">Choisir...</option>
+            <option value="AK1">AK1</option>
+            <option value="AK2">AK2</option>
+            <option value="AK3">AK3</option>
+          </select>
+
+          <label>Raison libre (optionnelle)</label>
+          <input type="text" name="reasonText" placeholder="Pack surf, promo, etc.">
+
+          <button type="submit" class="btn-primary">Valider</button>
+          <div class="small" id="grant-credits-status"></div>
+        </form>
+
+        <!-- Création de session -->
+        <form id="create-session-form">
+          <strong>Créer une session</strong>
+
+          <label>Type d'activité</label>
+          <select name="activityTypeCode" required>
+            <option value="">Choisir...</option>
+            <option value="surf_beginner">Surf – Beginners</option>
+            <option value="surf_intermediate">Surf – Intermediate</option>
+            <option value="surf_advanced">Surf – Advanced</option>
+            <option value="surfskate">Surfskate / Surf treino</option>
+            <option value="street_skate">Street skate</option>
+            <option value="bike_tour">Bike tour</option>
+            <option value="surf_tip">Surf tip</option>
+          </select>
+
+          <label>Semaine (lundi–dimanche)</label>
+          <select name="week" id="week-select" required>
+            <option value="">Choisir une semaine...</option>
+          </select>
+
+          <label>Jour de la semaine</label>
+          <select name="day" required>
+            <option value="">Choisir...</option>
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+            <option value="saturday">Saturday</option>
+            <option value="sunday">Sunday</option>
+          </select>
+
+          <label>Heure de début</label>
+          <div class="inline-selects">
+            <select name="startHour" required>
+              <option value="">Heure</option>
+              <option value="7">07</option>
+              <option value="8">08</option>
+              <option value="9">09</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="17">17</option>
+              <option value="18">18</option>
+              <option value="19">19</option>
+              <option value="20">20</option>
+              <option value="21">21</option>
+            </select>
+            <select name="startMinute" required>
+              <option value="">Min</option>
+              <option value="0">00</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+            </select>
+          </div>
+
+          <label>Capacité</label>
+          <input type="number" name="capacity" min="1" value="8" required>
+
+          <label>Coût en crédits</label>
+          <input type="number" name="creditCost" min="0" value="8" required>
+
+          <button type="submit" class="btn-secondary">Créer la session</button>
+          <div class="small" id="create-session-status"></div>
+        </form>
+
+        <hr style="margin:0.75rem 0;" />
+
+        <!-- Liste des sessions -->
+        <strong>Sessions existantes</strong>
+        <div class="small">Liste des créneaux actuellement au planning.</div>
+        <div id="sessions-list" style="margin-top:0.5rem;">Chargement...</div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const apiBase = 'http://localhost:3000/api';
+
+      // Auth en cours + cache des users + permissions modo (côté front)
+      let auth = null;
+      let cachedAllUsers = [];
+      let modoPermissions = {
+        editCredits: true,
+        editPassword: false,
+      };
+
+      // Références DOM
+      const headerInfo = document.getElementById('header-info');
+      const accessNotice = document.getElementById('access-notice');
+      const adminContent = document.getElementById('admin-content');
+      const pendingUsersDiv = document.getElementById('pending-users');
+      const allUsersDiv = document.getElementById('all-users');
+      const grantForm = document.getElementById('grant-credits-form');
+      const grantStatus = document.getElementById('grant-credits-status');
+      const sessionForm = document.getElementById('create-session-form');
+      const sessionStatus = document.getElementById('create-session-status');
+      const weekSelect = document.getElementById('week-select');
+      const backBtn = document.getElementById('back-to-index');
+
+      const createUserForm = document.getElementById('create-user-form');
+      const createUserStatus = document.getElementById('create-user-status');
+      const changePasswordForm = document.getElementById('change-password-form');
+      const changePasswordStatus = document.getElementById('change-password-status');
+      const userSearchInput = document.getElementById('user-search');
+      const permModoEditCredits = document.getElementById('perm-modo-edit-credits');
+      const permModoEditPassword = document.getElementById('perm-modo-edit-password');
+      const permissionsStatus = document.getElementById('permissions-status');
+
+      // Retour au planning
+      backBtn.addEventListener('click', () => {
+        window.location.href = '/index.html';
+      });
+
+      // Lecture / écriture de l'auth stockée
+      function loadAuthFromStorage() {
+        try {
+          const raw = window.localStorage.getItem('surfAuth');
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function saveAuth() {
+        if (!auth) return;
+        window.localStorage.setItem('surfAuth', JSON.stringify(auth));
+      }
+
+      // Helper fetch JSON avec Authorization
+      async function fetchJson(path, options = {}) {
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(options.headers || {}),
+        };
+        if (auth && auth.token) {
+          headers.Authorization = 'Bearer ' + auth.token;
+        }
+        const res = await fetch(apiBase + path, {
+          ...options,
+          headers,
+        });
+        if (!res.ok) {
+          if (res.status === 204) return null;
+          const txt = await res.text();
+          throw new Error(txt || res.statusText);
+        }
+        if (res.status === 204) return null;
+        return res.json();
+      }
+
+      // Calcul du lundi d'une date donnée (UTC)
+      function getMonday(date) {
+        const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+        const day = d.getUTCDay(); // 0=Sunday
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setUTCDate(d.getUTCDate() + diff);
+        d.setUTCHours(0, 0, 0, 0);
+        return d;
+      }
+
+      // ISO week string (YYYY-Wxx) à partir d'un lundi
+      function isoWeekValue(monday) {
+        const year = monday.getUTCFullYear();
+        const oneJan = new Date(Date.UTC(year, 0, 1));
+        const days = Math.round((monday - oneJan) / (24 * 3600 * 1000));
+        const week = Math.floor((days + oneJan.getUTCDay() + 6) / 7);
+        const weekStr = week.toString().padStart(2, '0');
+        return `${year}-W${weekStr}`;
+      }
+
+      function formatDate(d) {
+        const dd = d.getUTCDate().toString().padStart(2, '0');
+        const mm = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+        return `${dd}/${mm}`;
+      }
+
+      // Préremplir le select des semaines
+      function populateWeeks() {
+        if (!weekSelect) {
+          console.error('weekSelect introuvable');
+          return;
+        }
+        weekSelect.innerHTML = '<option value="">Choisir une semaine...</option>';
+
+        const today = new Date();
+        const firstMonday = getMonday(today);
+        const numberOfWeeks = 12;
+
+        for (let i = 0; i < numberOfWeeks; i++) {
+          const monday = new Date(firstMonday);
+          monday.setUTCDate(firstMonday.getUTCDate() + i * 7);
+
+          const sunday = new Date(monday);
+          sunday.setUTCDate(monday.getUTCDate() + 6);
+
+          const value = isoWeekValue(monday);
+          const label = `Mon ${formatDate(monday)} – Sun ${formatDate(sunday)}`;
+
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          weekSelect.appendChild(opt);
+        }
+      }
+
+      // Obtenir le lundi à partir d'une valeur de semaine ISO (YYYY-Wxx)
+      function getMondayOfWeek(weekValue) {
+        const [yearStr, weekStr] = weekValue.split('-W');
+        const year = Number(yearStr);
+        const week = Number(weekStr);
+        const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+        const dow = simple.getUTCDay();
+        const mondayOffset = dow <= 4 ? 1 - dow : 8 - dow;
+        const monday = new Date(simple);
+        monday.setUTCDate(simple.getUTCDate() + mondayOffset);
+        monday.setUTCHours(0, 0, 0, 0);
+        return monday;
+      }
+
+      function dayOffset(dayKey) {
+        switch (dayKey) {
+          case 'monday':
+            return 0;
+          case 'tuesday':
+            return 1;
+          case 'wednesday':
+            return 2;
+          case 'thursday':
+            return 3;
+          case 'friday':
+            return 4;
+          case 'saturday':
+            return 5;
+          case 'sunday':
+            return 6;
+          default:
+            return 0;
+        }
+      }
+
+      // Initialisation de la page admin
+      async function init() {
+        auth = loadAuthFromStorage();
+        if (!auth) {
+          accessNotice.style.display = 'block';
+          accessNotice.textContent =
+            'Accès refusé : vous devez vous connecter comme admin/modérateur depuis la page planning.';
+          headerInfo.textContent = 'Non connecté';
+          return;
+        }
+
+        headerInfo.textContent = auth.user.email + ' (' + auth.user.role + ') ';
+
+        // Seuls admin + moderator ont accès au backend
+        if (auth.user.role !== 'admin' && auth.user.role !== 'moderator') {
+          accessNotice.style.display = 'block';
+          accessNotice.textContent =
+            'Accès refusé : cette page est réservée aux administrateurs et modérateurs.';
+          return;
+        }
+
+        // Charger l'état initial des permissions (ici en mémoire, à persister si besoin)
+        permModoEditCredits.checked = modoPermissions.editCredits;
+        permModoEditPassword.checked = modoPermissions.editPassword;
+
+        accessNotice.style.display = 'none';
+        adminContent.style.display = 'grid';
+        saveAuth();
+
+        populateWeeks();
+        loadUsers();
+        loadSessions();
+      }
+
+      // Chargement des utilisateurs (pending + tous)
+      async function loadUsers() {
+        pendingUsersDiv.textContent = 'Chargement...';
+        allUsersDiv.textContent = 'Chargement...';
+        try {
+          const pending = await fetchJson('/users/pending');
+          const all = await fetchJson('/users');
+          cachedAllUsers = all;
+
+          renderPendingUsers(pending);
+          renderAllUsers(cachedAllUsers);
+        } catch (e) {
+          console.error(e);
+          pendingUsersDiv.textContent = 'Erreur de chargement.';
+          allUsersDiv.textContent = 'Erreur de chargement.';
+        }
+      }
+
+      // Rendu des comptes en attente + bouton Activer
+      function renderPendingUsers(users) {
+        if (!users.length) {
+          pendingUsersDiv.innerHTML = '<div class="small">Aucun compte en attente.</div>';
+          return;
+        }
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Email</th><th>Nom</th><th>Académie</th><th>Actions</th>
+            </tr>
+          </thead>
+        `;
+        const tbody = document.createElement('tbody');
+        users.forEach((u) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.email}</td>
+            <td>${u.first_name} ${u.last_name}</td>
+            <td>${u.academy_member ? 'Oui' : 'Non'}</td>
+            <td><button class="btn-primary" data-user-id="${u.id}">Activer</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        pendingUsersDiv.innerHTML = '';
+        pendingUsersDiv.appendChild(table);
+
+        // Activation via /users/:id/activate
+        tbody.querySelectorAll('button[data-user-id]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-user-id');
+            btn.disabled = true;
+            try {
+              await fetchJson('/users/' + id + '/activate', { method: 'POST' });
+              await loadUsers();
+            } catch (e) {
+              console.error(e);
+              btn.disabled = false;
+              alert('Erreur activation: ' + e.message);
+            }
+          });
+        });
+      }
+
+      // Rendu de tous les users avec filtre texte
+      function renderAllUsers(users, searchTerm = '') {
+        const normalized = searchTerm.trim().toLowerCase();
+        const filtered = normalized
+          ? users.filter((u) => {
+              const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
+              return (
+                u.email.toLowerCase().includes(normalized) || fullName.includes(normalized)
+              );
+            })
+          : users;
+
+        if (!filtered.length) {
+          allUsersDiv.innerHTML = '<div class="small">Aucun utilisateur.</div>';
+          return;
+        }
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Email</th><th>Nom</th><th>Rôle</th><th>Status</th>
+            </tr>
+          </thead>
+        `;
+        const tbody = document.createElement('tbody');
+        filtered.forEach((u) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.email}</td>
+            <td>${u.first_name} ${u.last_name}</td>
+            <td>${u.role}</td>
+            <td>${u.status}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        allUsersDiv.innerHTML = '';
+        allUsersDiv.appendChild(table);
+      }
+
+      // Filtre sur la liste
+      userSearchInput.addEventListener('input', (e) => {
+        renderAllUsers(cachedAllUsers, e.target.value);
+      });
+
+      // Création d'utilisateur via /auth/register + registerUser
+      createUserForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        createUserStatus.textContent = 'En cours...';
+
+        const form = new FormData(createUserForm);
+        const payload = {
+          firstName: form.get('firstName'),
+          lastName: form.get('lastName'),
+          email: form.get('email'),
+          password: form.get('password'),
+          academyMember: form.get('academyMember') === 'true',
+          // Le rôle choisi ici peut être utilisé ensuite côté backend
+          // soit via une route dédiée, soit via un autre service
+          role: form.get('role'),
+        };
+
+        try {
+          // Actuellement, registerUser crée toujours un "user" simple (role user).
+          // Si tu veux utiliser payload.role, il faudra adapter registerUser
+          // ou créer une route dédiée admin dans ton backend.
+          await fetchJson('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          createUserStatus.textContent = 'Utilisateur créé (statut pending).';
+          createUserForm.reset();
+          await loadUsers();
+        } catch (err) {
+          console.error(err);
+          createUserStatus.textContent = 'Erreur: ' + err.message;
+        }
+      });
+
+      // Changement de mot de passe via /users/:id/password
+      changePasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        changePasswordStatus.textContent = 'En cours...';
+
+        // Modérateur bloqué si case décochée
+        if (auth.user.role === 'moderator' && !permModoEditPassword.checked) {
+          changePasswordStatus.textContent =
+            'Action non autorisée pour les modérateurs (mot de passe).';
+          return;
+        }
+
+        const form = new FormData(changePasswordForm);
+        const email = form.get('email');
+        const newPassword = form.get('newPassword');
+
+        try {
+          const all = await fetchJson('/users');
+          const user = all.find((u) => u.email === email);
+          if (!user) throw new Error('Utilisateur introuvable pour cet email.');
+
+          await fetchJson('/users/' + user.id + '/password', {
+            method: 'POST',
+            body: JSON.stringify({ newPassword }),
+          });
+          changePasswordStatus.textContent = 'Mot de passe modifié.';
+          changePasswordForm.reset();
+        } catch (e) {
+          console.error(e);
+          changePasswordStatus.textContent = 'Erreur: ' + e.message;
+        }
+      });
+
+      // Gestion des permissions modo (côté front; à persister si besoin)
+      permModoEditCredits.addEventListener('change', () => {
+        modoPermissions.editCredits = permModoEditCredits.checked;
+        permissionsStatus.textContent = 'Permissions modérateur mises à jour (crédits).';
+      });
+
+      permModoEditPassword.addEventListener('change', () => {
+        modoPermissions.editPassword = permModoEditPassword.checked;
+        permissionsStatus.textContent = 'Permissions modérateur mises à jour (mot de passe).';
+      });
+
+      // Don de crédits avec contrôle des droits des modérateurs
+      grantForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        grantStatus.textContent = 'En cours...';
+
+        if (auth.user.role === 'moderator' && !permModoEditCredits.checked) {
+          grantStatus.textContent =
+            'Action non autorisée pour les modérateurs (crédits).';
+          return;
+        }
+
+        const form = new FormData(grantForm);
+        const email = form.get('email');
+        const amount = Number(form.get('amount'));
+        const reasonCode = form.get('reasonCode') || null;
+        const reasonText = form.get('reasonText') || '';
+
+        try {
+          const all = await fetchJson('/users');
+          const user = all.find((u) => u.email === email);
+          if (!user) throw new Error('Utilisateur introuvable pour cet email.');
+          await fetchJson('/credits/grant', {
+            method: 'POST',
+            body: JSON.stringify({
+              userId: user.id,
+              amount,
+              reasonCode,
+              reasonText,
+            }),
+          });
+          grantStatus.textContent = 'Crédits ajoutés.';
+          grantForm.reset();
+        } catch (e) {
+          console.error(e);
+          grantStatus.textContent = 'Erreur: ' + e.message;
+        }
+      });
+
+      // Création de session via /sessions
+      sessionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        sessionStatus.textContent = 'En cours...';
+        const form = new FormData(sessionForm);
+        const code = form.get('activityTypeCode');
+        const weekVal = form.get('week');
+        const dayVal = form.get('day');
+        const startHour = Number(form.get('startHour'));
+        const startMinute = Number(form.get('startMinute'));
+        const capacity = Number(form.get('capacity'));
+        const creditCost = Number(form.get('creditCost'));
+
+        try {
+          if (!weekVal || !dayVal) throw new Error('Semaine et jour requis.');
+
+          const monday = getMondayOfWeek(weekVal);
+          const offset = dayOffset(dayVal);
+
+          const start = new Date(monday);
+          start.setUTCDate(monday.getUTCDate() + offset);
+          start.setUTCHours(startHour, startMinute, 0, 0);
+
+          const startsAtIso = start.toISOString();
+
+          await fetchJson('/sessions', {
+            method: 'POST',
+            body: JSON.stringify({
+              activityTypeCode: code,
+              startsAt: startsAtIso,
+              capacity,
+              creditCost,
+            }),
+          });
+          sessionStatus.textContent =
+            'Session créée pour ' + dayVal + ' à ' +
+            startHour + 'h' + startMinute.toString().padStart(2, '0');
+          loadSessions();
+        } catch (e) {
+          console.error(e);
+          sessionStatus.textContent = 'Erreur: ' + e.message;
+        }
+      });
+
+      // Chargement et affichage des sessions existantes
+      async function loadSessions() {
+        const container = document.getElementById('sessions-list');
+        if (!container) return;
+
+        container.textContent = 'Chargement...';
+
+        try {
+          const sessions = await fetchJson('/sessions');
+          if (!sessions.length) {
+            container.textContent = 'Aucune session pour le moment.';
+            return;
+          }
+
+          const table = document.createElement('table');
+          table.innerHTML = `
+            <thead>
+              <tr>
+                <th>Activité</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Capacité</th>
+                <th>Crédits</th>
+                <th>Réservations</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+          `;
+          const tbody = document.createElement('tbody');
+
+          sessions.forEach((s) => {
+            const tr = document.createElement('tr');
+            const start = new Date(s.starts_at).toLocaleString();
+            const end = new Date(s.ends_at).toLocaleString();
+
+            tr.innerHTML = `
+              <td>[${s.activity_code}] ${s.activity_label}</td>
+              <td>${start}</td>
+              <td>${end}</td>
+              <td>${s.capacity}</td>
+              <td>${s.credit_cost}</td>
+              <td>${s.booked_count}</td>
+              <td><button class="btn-primary" data-session-id="${s.id}">Supprimer</button></td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(tbody);
+          container.innerHTML = '';
+          container.appendChild(table);
+
+          // Bouton suppression de session avec confirmation
+          tbody.querySelectorAll('button[data-session-id]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              const id = btn.getAttribute('data-session-id');
+              const row = btn.closest('tr');
+              const bookedCountCell = row ? row.children[5] : null;
+              const bookedCount = bookedCountCell
+                ? Number(bookedCountCell.textContent || '0')
+                : 0;
+
+              let message = 'Supprimer cette session ?';
+              if (bookedCount > 0) {
+                message = `Cette session a ${bookedCount} réservation(s). Supprimer quand même ?`;
+              }
+
+              if (!confirm(message)) return;
+
+              btn.disabled = true;
+              try {
+                await fetchJson('/sessions/' + id, { method: 'DELETE' });
+                await loadSessions();
+              } catch (e) {
+                console.error(e);
+                alert('Erreur suppression: ' + e.message);
+                btn.disabled = false;
+              }
+            });
+          });
+        } catch (e) {
+          console.error(e);
+          container.textContent = 'Erreur lors du chargement des sessions.';
+        }
+      }
+
+      // Lancer l’init au chargement
+      init();
+    })();
+  </script>
+</body>
+</html>

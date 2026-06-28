@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Surf It Easy – Weekly Schedule</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #cfe3f1;
+      color: #111827;
+    }
+    header {
+      padding: 0.75rem 1.25rem;
+      background: rgba(15, 23, 42, 0.85);
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 0 1rem 2rem;
+    }
+
+    .login-box {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .login-box form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .login-box input {
+      padding: 0.35rem 0.5rem;
+      font-size: 0.9rem;
+    }
+    .login-box button {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.9rem;
+      border-radius: 0.25rem;
+      border: none;
+      background: #2563eb;
+      color: #ffffff;
+      cursor: pointer;
+    }
+    .login-box button:hover {
+      background: #1d4ed8;
+    }
+    #login-status {
+      font-size: 0.8rem;
+    }
+    #user-panel {
+      margin-top: 0.25rem;
+      font-size: 0.85rem;
+    }
+    #user-panel button {
+      margin-top: 0.25rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      border-radius: 0.25rem;
+      border: none;
+      background: #111827;
+      color: #f9fafb;
+      cursor: pointer;
+    }
+
+    .schedule-wrapper {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    .schedule-header {
+      text-align: center;
+      padding: 1rem 0.5rem 0.5rem;
+      background: #e5ebf4;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+    .schedule-header span {
+      font-size: 1rem;
+    }
+    .schedule-subheader {
+      display: grid;
+      grid-template-columns: 180px 3fr 2fr 1fr 1fr 1fr;
+      background: #f9fafb;
+      border-bottom: 1px solid #d1d5db;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    .schedule-subheader div {
+      padding: 0.5rem;
+      border-right: 1px solid #e5e7eb;
+    }
+    .schedule-subheader div:last-child {
+      border-right: none;
+    }
+    .schedule-subheader strong {
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    table.schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    table.schedule-table th,
+    table.schedule-table td {
+      border: 1px solid #e5e7eb;
+      padding: 0.4rem 0.45rem;
+      text-align: center;
+      vertical-align: middle;
+    }
+    table.schedule-table th.day-col {
+      width: 180px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    table.schedule-table th.activity-col {
+      font-weight: 500;
+    }
+    .cell-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      align-items: center;
+      justify-content: center;
+    }
+    .times {
+      font-size: 0.8rem;
+    }
+    .text-pink {
+      color: #e11d48;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+    .book-btn {
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      border-radius: 0.25rem;
+      border: none;
+      background: #059669;
+      color: #ffffff;
+      cursor: pointer;
+    }
+    .book-btn:hover {
+      background: #047857;
+    }
+
+    .planning-footer {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Surf It Easy – Weekly Schedule</h1>
+    <span id="header-role"></span>
+  </header>
+
+  <main>
+    <div class="login-box">
+      <form id="login-form">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Mot de passe" required>
+        <button type="submit">Se connecter</button>
+      </form>
+      <span id="login-status"></span>
+      <div id="user-panel"></div>
+    </div>
+
+    <div id="week-nav" style="margin-bottom:0.5rem;">
+      <button id="prev-week">Semaine précédente</button>
+      <button id="current-week">Semaine actuelle</button>
+      <button id="next-week">Semaine suivante</button>
+      <span id="week-label" style="margin-left:0.5rem;font-size:0.85rem;color:#6b7280;"></span>
+    </div>
+
+    <div class="schedule-wrapper">
+      <div class="schedule-header">
+        <span id="schedule-header-range">Weekly schedule</span>
+      </div>
+
+      <div class="schedule-subheader">
+        <div>
+          <strong>Surf It Easy</strong>
+          <span class="small">Weekly schedule</span>
+        </div>
+        <div>
+          <strong>Surf lessons</strong>
+          <span>Beginners · Intermediate · Advanced</span>
+        </div>
+        <div>
+          <strong>Surfskate / Surf treino</strong>
+          <span>Technical training on land</span>
+        </div>
+        <div>
+          <strong>Skate</strong>
+          <span>Street skate · All levels</span>
+        </div>
+        <div>
+          <strong>Bike tour</strong>
+          <span>Lets discover Peniche by bike</span>
+        </div>
+        <div>
+          <strong>Surf tip</strong>
+          <span>Surf forecast analysis</span>
+        </div>
+      </div>
+
+      <table class="schedule-table" id="schedule-table">
+        <thead>
+          <tr>
+            <th class="day-col"></th>
+            <th class="activity-col">Beginners</th>
+            <th class="activity-col">Intermediate</th>
+            <th class="activity-col">Advanced</th>
+            <th class="activity-col">Surfskate</th>
+            <th class="activity-col">Skate</th>
+            <th class="activity-col">Bike tour</th>
+            <th class="activity-col">Surf tip</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th class="day-col">Monday</th>
+            <td data-day="monday" data-col="surf_beginner"></td>
+            <td data-day="monday" data-col="surf_intermediate"></td>
+            <td data-day="monday" data-col="surf_advanced"></td>
+            <td data-day="monday" data-col="surfskate"></td>
+            <td data-day="monday" data-col="street_skate"></td>
+            <td data-day="monday" data-col="bike_tour"></td>
+            <td data-day="monday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Tuesday</th>
+            <td data-day="tuesday" data-col="surf_beginner"></td>
+            <td data-day="tuesday" data-col="surf_intermediate"></td>
+            <td data-day="tuesday" data-col="surf_advanced"></td>
+            <td data-day="tuesday" data-col="surfskate"></td>
+            <td data-day="tuesday" data-col="street_skate"></td>
+            <td data-day="tuesday" data-col="bike_tour"></td>
+            <td data-day="tuesday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Wednesday</th>
+            <td data-day="wednesday" data-col="surf_beginner"></td>
+            <td data-day="wednesday" data-col="surf_intermediate"></td>
+            <td data-day="wednesday" data-col="surf_advanced"></td>
+            <td data-day="wednesday" data-col="surfskate"></td>
+            <td data-day="wednesday" data-col="street_skate"></td>
+            <td data-day="wednesday" data-col="bike_tour"></td>
+            <td data-day="wednesday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Thursday</th>
+            <td data-day="thursday" data-col="surf_beginner"></td>
+            <td data-day="thursday" data-col="surf_intermediate"></td>
+            <td data-day="thursday" data-col="surf_advanced"></td>
+            <td data-day="thursday" data-col="surfskate"></td>
+            <td data-day="thursday" data-col="street_skate"></td>
+            <td data-day="thursday" data-col="bike_tour"></td>
+            <td data-day="thursday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Friday</th>
+            <td data-day="friday" data-col="surf_beginner"></td>
+            <td data-day="friday" data-col="surf_intermediate"></td>
+            <td data-day="friday" data-col="surf_advanced"></td>
+            <td data-day="friday" data-col="surfskate"></td>
+            <td data-day="friday" data-col="street_skate"></td>
+            <td data-day="friday" data-col="bike_tour"></td>
+            <td data-day="friday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Saturday</th>
+            <td data-day="saturday" data-col="surf_beginner"></td>
+            <td data-day="saturday" data-col="surf_intermediate"></td>
+            <td data-day="saturday" data-col="surf_advanced"></td>
+            <td data-day="saturday" data-col="surfskate"></td>
+            <td data-day="saturday" data-col="street_skate"></td>
+            <td data-day="saturday" data-col="bike_tour"></td>
+            <td data-day="saturday" data-col="surf_tip"></td>
+          </tr>
+          <tr>
+            <th class="day-col">Sunday</th>
+            <td data-day="sunday" data-col="surf_beginner"></td>
+            <td data-day="sunday" data-col="surf_intermediate"></td>
+            <td data-day="sunday" data-col="surf_advanced"></td>
+            <td data-day="sunday" data-col="surfskate"></td>
+            <td data-day="sunday" data-col="street_skate"></td>
+            <td data-day="sunday" data-col="bike_tour"></td>
+            <td data-day="sunday" data-col="surf_tip"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="planning-footer">
+        Les créneaux affichés proviennent des sessions réelles en base.
+        Les élèves connectés peuvent réserver directement sur le planning.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Même base que l’admin
+    const apiBase = 'http://localhost:3000/api';
+
+    // Navigation de semaine
+    function getMonday(date) {
+      const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const day = d.getUTCDay(); // 0 = Sunday
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setUTCDate(d.getUTCDate() + diff);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    }
+
+    let currentMonday = getMonday(new Date());
+
+    function formatDate(d) {
+      const dd = d.getUTCDate().toString().padStart(2, '0');
+      const mm = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+      return `${dd}/${mm}`;
+    }
+
+    function updateWeekLabels() {
+      const monday = currentMonday;
+      const sunday = new Date(monday);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
+      const text = `Semaine du ${formatDate(monday)} au ${formatDate(sunday)}`;
+      document.getElementById('week-label').textContent = text;
+      document.getElementById('schedule-header-range').textContent = text;
+    }
+
+    // Auth + planning
+    (function () {
+      let auth = null;
+
+      const loginForm = document.getElementById('login-form');
+      const loginStatus = document.getElementById('login-status');
+      const userPanel = document.getElementById('user-panel');
+      const headerRole = document.getElementById('header-role');
+      const scheduleTable = document.getElementById('schedule-table');
+
+      function loadAuthFromStorage() {
+        try {
+          const raw = window.localStorage.getItem('surfAuth');
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+        async function fetchJson(path, options = {}) {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+        };
+        if (auth && auth.token) {
+            headers.Authorization = 'Bearer ' + auth.token;
+        }
+        const res = await fetch(apiBase + path, {
+            ...options,
+            headers,
+            credentials: 'include', // seulement si tu en as besoin
+        });
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || res.statusText);
+        }
+        return res.json();
+        }
+
+      function dayKeyFromDate(date) {
+        const d = date.getUTCDay(); // 0=Sunday
+        switch (d) {
+          case 1: return 'monday';
+          case 2: return 'tuesday';
+          case 3: return 'wednesday';
+          case 4: return 'thursday';
+          case 5: return 'friday';
+          case 6: return 'saturday';
+          case 0: return 'sunday';
+          default: return '';
+        }
+      }
+
+      function timeLabel(date) {
+        const h = date.getUTCHours();
+        const m = date.getUTCMinutes();
+        const hh = h.toString().padStart(2, '0');
+        const mm = m.toString().padStart(2, '0');
+        return hh + 'h' + mm;
+      }
+
+        async function loadWeekSessions() {
+        updateWeekLabels();
+
+        try {
+            const sessions = await fetchJson('/sessions');
+
+            const monday = currentMonday;
+            const sunday = new Date(monday);
+            sunday.setUTCDate(monday.getUTCDate() + 6);
+
+            const weekSessions = sessions.filter((s) => {
+            const start = new Date(s.starts_at);
+
+            const y = start.getUTCFullYear();
+            const m = start.getUTCMonth();
+            const d = start.getUTCDate();
+
+            const my = monday.getUTCFullYear();
+            const mm = monday.getUTCMonth();
+            const md = monday.getUTCDate();
+
+            const sy = sunday.getUTCFullYear();
+            const sm = sunday.getUTCMonth();
+            const sd = sunday.getUTCDate();
+
+            const afterOrEqualMonday =
+                y > my ||
+                (y === my && (m > mm || (m === mm && d >= md)));
+
+            const beforeOrEqualSunday =
+                y < sy ||
+                (y === sy && (m < sm || (m === sm && d <= sd)));
+
+            return afterOrEqualMonday && beforeOrEqualSunday;
+            });
+
+            renderPlanning(weekSessions);
+        } catch (e) {
+            console.error(e);
+        }
+        }
+
+      function renderPlanning(sessions) {
+        const cellsIndex = {};
+        sessions.forEach((s) => {
+          const starts = new Date(s.starts_at);
+          const dayKey = dayKeyFromDate(starts);
+          const code = s.activity_code;
+          if (!dayKey || !code) return;
+          if (!cellsIndex[dayKey]) cellsIndex[dayKey] = {};
+          if (!cellsIndex[dayKey][code]) cellsIndex[dayKey][code] = [];
+          cellsIndex[dayKey][code].push({
+            id: s.id,
+            time: timeLabel(starts),
+            level: s.level,
+            teacher: s.teacher_name || '',
+            capacity: s.capacity,
+            booked: s.booked_count || 0,
+            cost: s.credit_cost
+          });
+        });
+
+        const allCells = scheduleTable.querySelectorAll('td[data-day][data-col]');
+        allCells.forEach((td) => {
+          const day = td.getAttribute('data-day');
+          const col = td.getAttribute('data-col');
+          const sessionsForCell = (cellsIndex[day] && cellsIndex[day][col]) ? cellsIndex[day][col] : [];
+
+          td.innerHTML = '';
+          const wrapper = document.createElement('div');
+          wrapper.className = 'cell-content';
+
+          if (!sessionsForCell.length) {
+            if (col === 'surf_advanced') {
+              const span = document.createElement('span');
+              span.className = 'text-pink';
+              span.innerHTML = 'NO ADVANCED CLASS<br>IN THIS DAY';
+              wrapper.appendChild(span);
+            }
+            td.appendChild(wrapper);
+            return;
+          }
+
+          const times = sessionsForCell.map(s => s.time).join(' & ');
+          const timesSpan = document.createElement('span');
+          timesSpan.className = 'times';
+          timesSpan.textContent = times;
+          wrapper.appendChild(timesSpan);
+
+          const infoSpan = document.createElement('span');
+          infoSpan.className = 'small';
+          const totalCap = sessionsForCell.reduce((sum, s) => sum + s.capacity, 0);
+          const totalBooked = sessionsForCell.reduce((sum, s) => sum + s.booked, 0);
+          infoSpan.textContent = `${totalBooked}/${totalCap} réservations`;
+          wrapper.appendChild(infoSpan);
+
+          if (auth && auth.user.role === 'user') {
+            sessionsForCell.forEach((s) => {
+              const btn = document.createElement('button');
+              btn.className = 'book-btn';
+              btn.textContent = 'Réserver (' + s.cost + ' crédits)';
+              btn.onclick = () => bookSession(s.id);
+              wrapper.appendChild(btn);
+            });
+          }
+
+          td.appendChild(wrapper);
+        });
+      }
+
+      async function updateUserPanel() {
+        if (!auth) {
+          userPanel.innerHTML = '';
+          headerRole.textContent = '';
+          await loadWeekSessions();
+          return;
+        }
+
+        const role = auth.user.role;
+        headerRole.textContent = `Connecté : ${auth.user.email} (${role})`;
+
+        let html = '';
+
+        if (role === 'admin' || role === 'moderator') {
+          html += '<div>Vous êtes admin/modérateur.</div>';
+          html += '<button type="button" onclick="window.location.href=\'/admin.html\'">Accès backend</button>';
+        }
+
+        if (role === 'user') {
+          html += '<div>Vous êtes élève.</div>';
+          try {
+            const wallet = await fetchJson('/credits/wallet/' + auth.user.id);
+            html += `<div>Crédits disponibles : <strong>${wallet.balance_credits}</strong></div>`;
+          } catch (e) {
+            console.error(e);
+            html += '<div class="small">Impossible de charger les crédits.</div>';
+          }
+        }
+
+        userPanel.innerHTML = html;
+        await loadWeekSessions();
+      }
+
+      async function bookSession(sessionId) {
+        if (!auth) return;
+        try {
+          const result = await fetchJson('/bookings', {
+            method: 'POST',
+            body: JSON.stringify({ sessionId })
+          });
+          alert('Réservation OK. Nouveau solde : ' + result.balance);
+          updateUserPanel();
+        } catch (e) {
+          console.error(e);
+          alert('Erreur de réservation : ' + e.message);
+        }
+      }
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginStatus.textContent = 'Connexion...';
+        const form = new FormData(loginForm);
+        const email = form.get('email');
+        const password = form.get('password');
+        try {
+          const resp = await fetchJson('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+          });
+          auth = { token: resp.token, user: resp.user };
+          window.localStorage.setItem('surfAuth', JSON.stringify(auth));
+          loginStatus.textContent = 'Connecté';
+          updateUserPanel();
+        } catch (err) {
+          console.error(err);
+          loginStatus.textContent = 'Erreur de connexion';
+        }
+      });
+
+      document.getElementById('prev-week').addEventListener('click', () => {
+        currentMonday = new Date(currentMonday);
+        currentMonday.setUTCDate(currentMonday.getUTCDate() - 7);
+        loadWeekSessions();
+      });
+
+      document.getElementById('next-week').addEventListener('click', () => {
+        currentMonday = new Date(currentMonday);
+        currentMonday.setUTCDate(currentMonday.getUTCDate() + 7);
+        loadWeekSessions();
+      });
+
+      document.getElementById('current-week').addEventListener('click', () => {
+        currentMonday = getMonday(new Date());
+        loadWeekSessions();
+      });
+
+      // init
+      auth = loadAuthFromStorage();
+      updateWeekLabels();
+      if (auth) {
+        updateUserPanel();
+      } else {
+        loadWeekSessions();
+      }
+    })();
+  </script>
+</body>
+</html>

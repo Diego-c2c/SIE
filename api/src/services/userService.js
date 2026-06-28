@@ -1,0 +1,4 @@
+import { pool } from '../db/pool.js';
+export async function listPendingUsers() { const r = await pool.query(`SELECT id, first_name, last_name, email, status, academy_member, created_at FROM users WHERE status = 'pending' ORDER BY created_at ASC`); return r.rows; }
+export async function activateUser(userId) { const r = await pool.query(`UPDATE users SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING id, email, status`, [userId]); if (!r.rowCount) throw Object.assign(new Error('User not found'), { status: 404 }); return r.rows[0]; }
+export async function listUsers() { const r = await pool.query(`SELECT u.id, u.first_name, u.last_name, u.email, u.status, u.academy_member, r.code AS role FROM users u JOIN roles r ON r.id = u.role_id ORDER BY u.created_at DESC`); return r.rows; }
