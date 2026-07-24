@@ -1083,13 +1083,37 @@
 
           const startsAtIso = start.toISOString();
 
+          const activityTypeMap = {
+            surf_beginner: 'd2142533-7304-4bab-9624-131a04b2131f',
+            surf_intermediate: 'bb636901-7980-4f73-a7cd-a264522bc0e8',
+            surf_advanced: 'ab22fe1e-9e65-46cd-b80a-920d4bf274a7',
+            surfskate_beginner: 'dcd6029e-91fe-42c3-94c8-957a824f1fb8',
+            surfskate_inter_advanced: 'f751f5c4-922d-48f8-8efa-94cfc7698809',
+            street_skate: 'fc1b9b8b-60f6-439b-92cc-e1d524636d59',
+            bike_tour: '8b148b52-6fe6-45dc-9f01-fbd8eabc75fc',
+            surf_tip: '9c5c74d7-7299-4442-b4fd-0b914a5b22ae',
+          };
+
+          const activityTypeId = activityTypeMap[code];
+          if (!activityTypeId) {
+            throw new Error('Type d’activité invalide.');
+          }
+
+          const end = new Date(start);
+          end.setUTCHours(end.getUTCHours() + 1);
+          const endsAtIso = end.toISOString();
+
           await fetchJson('/sessions', {
             method: 'POST',
             body: JSON.stringify({
-              activityTypeCode: code,
+              activityTypeId,
+              teacherUserId: null,
+              level: 'all',
               startsAt: startsAtIso,
+              endsAt: endsAtIso,
               capacity,
               creditCost,
+              locationLabel: 'Peniche',
             }),
           });
           sessionStatus.textContent =
