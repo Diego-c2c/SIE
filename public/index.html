@@ -383,25 +383,25 @@
         }
       }
 
-        async function fetchJson(path, options = {}) {
-        const headers = {
-            'Content-Type': 'application/json',
-            ...(options.headers || {}),
-        };
-        if (auth && auth.token) {
-            headers.Authorization = 'Bearer ' + auth.token;
-        }
-        const res = await fetch(apiBase + path, {
-            ...options,
-            headers,
-            credentials: 'include', // seulement si tu en as besoin
-        });
-        if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt || res.statusText);
-        }
-        return res.json();
-        }
+    async function fetchJson(path, options = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      };
+      if (auth && auth.token) {
+        headers.Authorization = 'Bearer ' + auth.token;
+      }
+      const res = await fetch(apiBase + path, {
+        ...options,
+        headers,
+        // pas de credentials ici en dev: on utilise uniquement Authorization
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || res.statusText);
+      }
+      return res.json();
+    }
 
       function dayKeyFromDate(date) {
         const d = date.getUTCDay(); // 0=Sunday

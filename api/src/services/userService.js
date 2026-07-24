@@ -54,6 +54,9 @@ export async function activateUser(userId) {
  *  - id, first_name, last_name, email
  *  - status, academy_member, academy_code
  *  - role: code de rôle (user, teacher, moderator, admin)
+ *
+ * Les utilisateurs "deleted" (soft delete) sont exclus de la liste
+ * principale de l'admin, pour ne plus apparaître dans le tableau.
  */
 export async function listUsers() {
   const r = await pool.query(
@@ -69,8 +72,7 @@ export async function listUsers() {
       r.code AS role
     FROM users u
     JOIN roles r ON r.id = u.role_id
-    -- optionnel : exclure les users "deleted" si tu fais du soft-delete
-    -- WHERE u.status <> 'deleted'
+    WHERE u.status <> 'deleted'
     ORDER BY u.created_at DESC
     `
   );
@@ -167,10 +169,17 @@ export async function updateUser(userId, payload) {
 }
 
 /**
- * Supprime un utilisateur (admin).
+ * Supprime un utilisateur (admin) via "soft delete".
  *
- * Ici on fait un "soft delete" en mettant status = 'deleted'.
- * Tu peux adapter en DELETE physique si tu préfères.
+ * On ne fait pas un DELETE physique pour garder l'historique :
+ *  - Les foreign keys (wallets, bookings, credit_transactions...) restent cohérentes.
+ *  - On peut tracer qui a été supprimé, à quel moment.
+ *
+ * La colonne users.status est contrainte par users_status_check :
+ *  CHECK (status IN ('pending', 'active', 'suspended', 'deleted'))
+ * via une migration SQL dédiée.
+ *
+ * Ici, on passe simplement le status à 'deleted' et on rafraîchit updated_at.
  */
 export async function deleteUser(userId) {
   const r = await pool.query(
@@ -183,6 +192,7 @@ export async function deleteUser(userId) {
     [userId]
   );
 
+  // Si aucun utilisateur n'a été mis à jour, on renvoie une 404 côté API.
   if (!r.rowCount) {
     throw Object.assign(new Error('User not found'), { status: 404 });
   }

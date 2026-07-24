@@ -7,13 +7,18 @@ import {
   deleteSession,
   getSessionById,
   updateSession,
-  listSessionAttendees, // <-- ajout
+  listSessionAttendees,
 } from '../services/sessionService.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-// liste
+/**
+ * GET /api/sessions
+ *
+ * Liste toutes les sessions (planning).
+ * Route publique pour l'instant.
+ */
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -27,7 +32,12 @@ router.get(
   })
 );
 
-// lecture d'une session par id
+/**
+ * GET /api/sessions/:id
+ *
+ * Lecture d'une session par id.
+ * Réservé aux admin et moderators.
+ */
 router.get(
   '/:id',
   requireAuth,
@@ -41,17 +51,28 @@ router.get(
   })
 );
 
-// création
+/**
+ * POST /api/sessions
+ *
+ * Création d'une nouvelle session.
+ * Réservé aux admin et moderators.
+ */
 router.post(
   '/',
   requireAuth,
   requireRole('admin', 'moderator'),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await createSession(req.body));
+    const created = await createSession(req.body);
+    res.status(201).json(created);
   })
 );
 
-// mise à jour
+/**
+ * PUT /api/sessions/:id
+ *
+ * Mise à jour d'une session (dates, capacité, credits, moderatorId, etc.).
+ * Réservé aux admin et moderators.
+ */
 router.put(
   '/:id',
   requireAuth,
@@ -65,24 +86,49 @@ router.put(
   })
 );
 
-// roster
+/**
+ * POST /api/sessions/:id/roster
+ *
+ * Gestion du roster (inscrits) pour une session.
+ * Réservé aux admin, moderators et teachers.
+ *
+ * Body attendu:
+ *   {
+ *     "userId": "<id de l'élève>",
+ *     "action": "add" | "remove" | ...
+ *   }
+ *
+ * Le 4e paramètre de updateSessionRoster reçoit l'id de
+ * l'utilisateur qui effectue l'action via req.user.id.
+ */
 router.post(
   '/:id/roster',
   requireAuth,
   requireRole('admin', 'moderator', 'teacher'),
   asyncHandler(async (req, res) => {
-    res.json(
-      await updateSessionRoster(
-        req.params.id,
-        req.body.userId,
-        req.body.action,
-        req.auth.sub
-      )
+    const sessionId = req.params.id;
+    const { userId, action } = req.body;
+
+    // utilisateur courant posé par requireAuth
+    const performedByUserId = req.user.id; // <-- CORRECTION ICI
+
+    const result = await updateSessionRoster(
+      sessionId,
+      userId,
+      action,
+      performedByUserId
     );
+
+    res.json(result);
   })
 );
 
-// liste des inscrits pour une session
+/**
+ * GET /api/sessions/:id/attendees
+ *
+ * Liste des inscrits pour une session.
+ * Réservé aux admin, moderators, teachers.
+ */
 router.get(
   '/:id/attendees',
   requireAuth,
@@ -93,7 +139,12 @@ router.get(
   })
 );
 
-// suppression
+/**
+ * DELETE /api/sessions/:id
+ *
+ * Suppression d'une session.
+ * Réservé aux admin et moderators.
+ */
 router.delete(
   '/:id',
   requireAuth,

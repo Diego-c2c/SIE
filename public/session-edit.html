@@ -5,6 +5,7 @@
   <title>Edit session</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* Layout de base */
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -23,6 +24,8 @@
       font-size: 1.1rem;
       margin-bottom: 0.5rem;
     }
+
+    /* Form & inputs */
     label {
       display: block;
       font-size: 0.85rem;
@@ -57,6 +60,8 @@
     .small.success {
       color: #166534;
     }
+
+    /* Boutons */
     button {
       margin-top: 0.75rem;
       padding: 0.35rem 0.8rem;
@@ -72,6 +77,8 @@
     .btn-primary:hover {
       background: #1d4ed8;
     }
+
+    /* Layout en lignes */
     .inline-row {
       display: flex;
       gap: 0.75rem;
@@ -80,6 +87,8 @@
     .inline-row .field {
       flex: 1;
     }
+
+    /* Attendees */
     .attendees {
       margin-top: 0.5rem;
       font-size: 0.85rem;
@@ -104,16 +113,33 @@
     .attendee-row button:hover {
       background: #b91c1c;
     }
+
     .muted {
       color: #9ca3af;
+    }
+    .datetime-row {
+      display: flex;
+      flex-wrap: wrap;           /* casse en ligne suivante si l’écran est trop étroit */
+      gap: 1rem;                 /* espace entre les blocs */
+      align-items: flex-end;     /* aligne les inputs sur la ligne de base */
+    }
+
+    .datetime-field {
+      display: flex;
+      flex-direction: column;    /* label au-dessus de l’input */
+    }
+    .datetime-field {
+      flex: 1 1 200px;           /* chaque bloc prend une largeur flexible */
     }
   </style>
 </head>
 <body>
   <main>
     <h1 id="page-title">Edit session</h1>
+    <!-- Message global (chargement / erreurs) -->
     <div id="status" class="small">Loading...</div>
 
+    <!-- Formulaire d’édition de session -->
     <form id="edit-session-form" style="display:none;">
       <!-- Activity dropdown -->
       <fieldset>
@@ -125,17 +151,47 @@
         </div>
       </fieldset>
 
-      <!-- Start date: input + formatted text -->
+      <!-- Teacher / Moderator responsable -->
+      <fieldset>
+        <legend>Teacher / Moderator</legend>
+        <label for="moderator_id">Teacher / Moderator</label>
+        <select name="moderator_id" id="moderator_id">
+          <!-- valeur vide = aucun responsable -->
+          <option value="">– No one –</option>
+        </select>
+        <div class="small">
+          Select who is responsible for this session.
+        </div>
+      </fieldset>
+
+      <!-- Date & time: séparation date / heure -->
       <fieldset>
         <legend>Date & time (UTC)</legend>
-        <label for="starts_at">Start date</label>
-        <input type="datetime-local" name="starts_at" id="starts_at">
+
+        <div class="datetime-row">
+          <div class="datetime-field">
+            <label for="start_date">Start date</label>
+            <input type="date" name="start_date" id="start_date">
+          </div>
+
+          <div class="datetime-field">
+            <label for="start_time">Start time</label>
+            <input type="time" name="start_time" id="start_time" step="60">
+          </div>
+
+          <div class="datetime-field">
+            <label for="end_time">End time</label>
+            <input type="time" name="end_time" id="end_time" step="60">
+          </div>
+          
+        </div>
+
         <div class="small">
           Displayed as: <span id="starts_at_display" class="muted">–</span>
         </div>
       </fieldset>
 
-      <!-- Capacity & credits in one row -->
+      <!-- Capacity & credits -->
       <fieldset>
         <legend>Capacity & credits</legend>
         <div class="inline-row">
@@ -150,11 +206,14 @@
         </div>
       </fieldset>
 
-      <!-- Attendees list -->
+      <!-- Attendees list + remove -->
       <fieldset>
         <legend>Attendees</legend>
         <div id="attendees-container" class="attendees">
           <div class="small muted">No attendees.</div>
+        </div>
+        <div class="small">
+          Click “Remove” to unregister a user from this session.
         </div>
       </fieldset>
 
@@ -173,13 +232,22 @@
       const form = document.getElementById('edit-session-form');
       const pageTitle = document.getElementById('page-title');
 
+      // Champs principaux
       const activitySelect = document.getElementById('activity_type');
-      const startsAtInput = document.getElementById('starts_at');
+      const moderatorSelect = document.getElementById('moderator_id');
+
+      const startDateInput = document.getElementById('start_date');
+      const startTimeInput = document.getElementById('start_time');
+      const endTimeInput = document.getElementById('end_time');
       const startsAtDisplay = document.getElementById('starts_at_display');
+
       const capacityInput = document.getElementById('capacity');
       const creditCostInput = document.getElementById('credit_cost');
       const attendeesContainer = document.getElementById('attendees-container');
 
+      /* --------------------------------------------------------------------
+       * Auth: récupère surfAuth depuis localStorage
+       * ------------------------------------------------------------------ */
       function loadAuthFromStorage() {
         try {
           const raw = window.localStorage.getItem('surfAuth');
@@ -190,6 +258,9 @@
         }
       }
 
+      /* --------------------------------------------------------------------
+       * Wrapper fetch JSON avec token Bearer + gestion erreurs
+       * ------------------------------------------------------------------ */
       async function fetchJson(path, options = {}) {
         const headers = {
           'Content-Type': 'application/json',
@@ -206,28 +277,43 @@
           const txt = await res.text();
           throw new Error(txt || res.statusText);
         }
+        // Si 204, aucun JSON à retourner
+        if (res.status === 204) {
+          return null;
+        }
         return res.json();
       }
 
-      // ISO -> datetime-local (UTC)
-      function toInputDateTimeLocal(iso) {
-        if (!iso) return '';
+      /* --------------------------------------------------------------------
+       * Utilitaires date/heure
+       * - parse ISO pour remplir date + time
+       * - recompose ISO depuis date + time (UTC)
+       * ------------------------------------------------------------------ */
+
+      // ISO -> { date: 'YYYY-MM-DD', time: 'HH:MM' } en UTC
+      function isoToDateAndTime(iso) {
+        if (!iso) return { date: '', time: '' };
         const d = new Date(iso);
         const yyyy = d.getUTCFullYear();
         const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
         const dd = String(d.getUTCDate()).padStart(2, '0');
         const hh = String(d.getUTCHours()).padStart(2, '0');
         const min = String(d.getUTCMinutes()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+        return {
+          date: `${yyyy}-${mm}-${dd}`,
+          time: `${hh}:${min}`,
+        };
       }
 
-      // datetime-local (UTC) -> ISO
-      function fromInputDateTimeLocal(val) {
-        if (!val) return null;
-        return new Date(val + 'Z').toISOString();
+      // { date: 'YYYY-MM-DD', time: 'HH:MM' } -> ISO (UTC)
+      function dateAndTimeToIso(date, time) {
+        if (!date || !time) return null;
+        // On construit une date en UTC en ajoutant 'Z'
+        const isoString = `${date}T${time}:00Z`;
+        return new Date(isoString).toISOString();
       }
 
-      // Human-readable English date (Monday, 12 August 2026, 14:00)
+      // Format humain pour affichage (Monday, 12 August 2026, 14:00)
       function formatHumanDate(iso) {
         if (!iso) return '–';
         const d = new Date(iso);
@@ -242,11 +328,15 @@
         });
       }
 
+      // Met à jour le label "Displayed as" dès que date/heure changent
       function updateStartsAtDisplay() {
-        const iso = fromInputDateTimeLocal(startsAtInput.value);
+        const iso = dateAndTimeToIso(startDateInput.value, startTimeInput.value);
         startsAtDisplay.textContent = formatHumanDate(iso);
       }
 
+      /* --------------------------------------------------------------------
+       * Gestion du message de sauvegarde
+       * ------------------------------------------------------------------ */
       function setSaveStatus(message, type) {
         saveStatusEl.textContent = message || '';
         saveStatusEl.classList.remove('error', 'success');
@@ -257,38 +347,32 @@
         }
       }
 
-      // Populate activity dropdown from /activity-types
-      // with custom filtering:
-      // - ensure only one 'bike_tour'
-      // - replace any 'skate_lesson' with two entries:
-      //   'skate_lesson_beginner' and 'skate_lesson_inter_advanced'
+      /* --------------------------------------------------------------------
+       * Activity types : même logique que ta version d’origine
+       * ------------------------------------------------------------------ */
       async function loadActivityTypes(currentCode) {
         const types = await fetchJson('/activity-types');
 
         // 1) Remove duplicate bike_tour based on code
-        const seenBikeTour = false;
         const deduped = [];
         let bikeSeen = false;
 
         for (const t of types) {
           if (t.code === 'bike_tour') {
             if (bikeSeen) {
-              // skip duplicates
               continue;
             }
             bikeSeen = true;
             deduped.push(t);
           } else if (t.code === 'skate_lesson') {
-            // on ne pousse pas skate_lesson ici,
-            // on le gérera à l'étape suivante (on veut seulement les variantes)
+            // On ne garde pas skate_lesson 'brut', on ajoutera les variantes ensuite
             continue;
           } else {
             deduped.push(t);
           }
         }
 
-        // 2) Ajouter explicitement les deux variantes de skate lesson
-        // (si tu veux qu'elles existent toujours dans le select)
+        // 2) Variantes de skate lesson
         deduped.push({
           code: 'skate_lesson_beginner',
           label: 'Skate lesson – Beginner',
@@ -298,7 +382,7 @@
           label: 'Skate lesson – Inter & Advanced',
         });
 
-        // 3) Remplir le select avec la liste finale
+        // 3) Remplissage du select
         activitySelect.innerHTML = '';
         deduped.forEach((t) => {
           const opt = document.createElement('option');
@@ -308,14 +392,38 @@
           if (t.code === currentCode) {
             opt.selected = true;
           }
-
           activitySelect.appendChild(opt);
         });
       }
 
-      // Load attendees list for this session
+      // Chargement des moderators
+      async function loadModerators(currentModeratorId) {
+        const moderators = await fetchJson('/users?role=moderator'); // à adapter à ton backend
+        moderatorSelect.innerHTML = '';
+
+        // Option par défaut "no one" (null)
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '– No one –';
+        moderatorSelect.appendChild(noneOpt);
+
+        moderators.forEach((u) => {
+          const opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = `${u.firstName} ${u.lastName} (${u.email})`;
+          if (currentModeratorId && String(u.id) === String(currentModeratorId)) {
+            opt.selected = true;
+          }
+          moderatorSelect.appendChild(opt);
+        });
+      }
+      
+      /* --------------------------------------------------------------------
+       * Attendees list + bouton Remove
+       * - GET /sessions/:id/attendees
+       * - POST /sessions/:id/roster { userId, action: 'remove' }
+       * ------------------------------------------------------------------ */
       async function loadAttendees(sessionId) {
-        // Requires an endpoint like GET /sessions/:id/attendees
         try {
           const attendees = await fetchJson(`/sessions/${sessionId}/attendees`);
           attendeesContainer.innerHTML = '';
@@ -340,7 +448,6 @@
             btn.textContent = 'Remove';
             btn.addEventListener('click', async () => {
               try {
-                // Uses your roster API: action = 'remove'
                 await fetchJson(`/sessions/${sessionId}/roster`, {
                   method: 'POST',
                   body: JSON.stringify({
@@ -348,7 +455,6 @@
                     action: 'remove',
                   }),
                 });
-                // Reload attendees list
                 await loadAttendees(sessionId);
               } catch (e) {
                 console.error(e);
@@ -367,6 +473,9 @@
         }
       }
 
+      /* --------------------------------------------------------------------
+       * init() : contrôle rôle, chargement de la session, remplissage formulaire
+       * ------------------------------------------------------------------ */
       async function init() {
         auth = loadAuthFromStorage();
         if (!auth || (auth.user.role !== 'admin' && auth.user.role !== 'moderator')) {
@@ -385,14 +494,26 @@
           statusEl.textContent = 'Loading session...';
           const session = await fetchJson('/sessions/' + id);
 
+          // Titre de l’onglet basé sur le label de l’activité
           document.title = `Edit – ${session.activity_label}`;
           pageTitle.textContent = `Edit session: ${session.activity_label}`;
 
           // Load activity types and select current one
           await loadActivityTypes(session.activity_code);
 
-          // Fill start date
-          startsAtInput.value = toInputDateTimeLocal(session.starts_at);
+          // Nouveau : charge les moderators et sélectionne celui de la session
+          await loadModerators(session.moderator_id);
+
+          // Remplir date + heure depuis starts_at (et éventuellement ends_at)
+          const start = isoToDateAndTime(session.starts_at);
+          startDateInput.value = start.date;
+          startTimeInput.value = start.time;
+
+          if (session.ends_at) {
+            const end = isoToDateAndTime(session.ends_at);
+            endTimeInput.value = end.time;
+          }
+
           updateStartsAtDisplay();
 
           // Capacity & credits
@@ -411,8 +532,15 @@
         }
       }
 
-      startsAtInput.addEventListener('input', updateStartsAtDisplay);
+      /* --------------------------------------------------------------------
+       * Listeners : mise à jour de l’affichage humain
+       * ------------------------------------------------------------------ */
+      startDateInput.addEventListener('input', updateStartsAtDisplay);
+      startTimeInput.addEventListener('input', updateStartsAtDisplay);
 
+      /* --------------------------------------------------------------------
+       * Soumission du formulaire: PUT /sessions/:id
+       * ------------------------------------------------------------------ */
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         setSaveStatus('Saving...', null);
@@ -424,12 +552,15 @@
           return;
         }
 
-        const startsIso = fromInputDateTimeLocal(startsAtInput.value);
+        const startsIso = dateAndTimeToIso(startDateInput.value, startTimeInput.value);
+        const endsIso = dateAndTimeToIso(startDateInput.value, endTimeInput.value); // même date, heure de fin
+
         const capacity = Number(capacityInput.value);
         const creditCost = Number(creditCostInput.value);
+        const moderatorId = moderatorSelect.value || null;
 
         if (!startsIso) {
-          setSaveStatus('Please provide a start date.', 'error');
+          setSaveStatus('Please provide start date and time.', 'error');
           return;
         }
         if (!Number.isFinite(capacity) || capacity < 1) {
@@ -441,11 +572,14 @@
           return;
         }
 
+        // Payload aligné avec ton backend (à adapter si needed)
         const payload = {
           activityTypeCode: activitySelect.value,
           startsAt: startsIso,
+          endsAt: endsIso,       // si tu ne gères pas endTime pour l’instant, tu peux le retirer
           capacity,
           creditCost,
+          moderatorId, // null si "no one"
         };
 
         try {
@@ -463,6 +597,7 @@
         }
       });
 
+      // Lancement initial
       init();
     })();
   </script>

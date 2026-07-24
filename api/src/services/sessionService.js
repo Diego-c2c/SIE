@@ -7,14 +7,14 @@ import { pool } from '../db/pool.js';
  * - dates de début/fin
  * - capacité, coût en crédits
  * - statut
- * - nom complet du moniteur
+ * - responsable (moderator) : id + nom complet
  * - nombre de réservations (booked_count)
  */
 export async function listSessions() {
   const r = await pool.query(`
     SELECT
       s.id,
-      at.code AS activity_code,
+      at.code  AS activity_code,
       at.label AS activity_label,
       s.level,
       s.starts_at,
@@ -22,20 +22,23 @@ export async function listSessions() {
       s.capacity,
       s.credit_cost,
       s.status,
-      CONCAT(t.first_name, ' ', t.last_name) AS teacher_name,
+      s.teacher_user_id AS moderator_id,                 -- ID du responsable (stocké dans teacher_user_id)
+      CONCAT(t.first_name, ' ', t.last_name) AS moderator_name, -- nom affiché
       COUNT(b.id) FILTER (WHERE b.status = 'booked') AS booked_count
     FROM activity_sessions s
     JOIN activity_types at ON at.id = s.activity_type_id
     LEFT JOIN users t ON t.id = s.teacher_user_id
     LEFT JOIN bookings b ON b.session_id = s.id
-    GROUP BY s.id, at.code, at.label, teacher_name
+    GROUP BY s.id, at.code, at.label, moderator_name
     ORDER BY s.starts_at ASC
   `);
+
   return r.rows;
 }
 
 /**
  * Lecture d'une session unique par ID.
+ *
  * Renvoie la même structure que listSessions(), mais pour un seul enregistrement.
  * Utile pour la page d'édition (session-edit.html?id=...).
  */
@@ -44,7 +47,7 @@ export async function getSessionById(id) {
     `
     SELECT
       s.id,
-      at.code AS activity_code,
+      at.code  AS activity_code,
       at.label AS activity_label,
       s.level,
       s.starts_at,
@@ -52,14 +55,15 @@ export async function getSessionById(id) {
       s.capacity,
       s.credit_cost,
       s.status,
-      CONCAT(t.first_name, ' ', t.last_name) AS teacher_name,
+      s.teacher_user_id AS moderator_id,
+      CONCAT(t.first_name, ' ', t.last_name) AS moderator_name,
       COUNT(b.id) FILTER (WHERE b.status = 'booked') AS booked_count
     FROM activity_sessions s
     JOIN activity_types at ON at.id = s.activity_type_id
     LEFT JOIN users t ON t.id = s.teacher_user_id
     LEFT JOIN bookings b ON b.session_id = s.id
     WHERE s.id = $1
-    GROUP BY s.id, at.code, at.label, teacher_name
+    GROUP BY s.id, at.code, at.label, moderator_name
     `,
     [id]
   );
@@ -88,7 +92,7 @@ export async function listSessionAttendees(sessionId) {
     SELECT
       u.id,
       u.first_name AS "firstName",
-      u.last_name AS "lastName",
+      u.last_name  AS "lastName",
       u.email
     FROM bookings b
     JOIN users u ON u.id = b.user_id
@@ -103,105 +107,54 @@ export async function listSessionAttendees(sessionId) {
 }
 
 /**
- * Petit helper pour détecter si une string ressemble à un UUID.
- * Utilisé pour interpréter un identifiant d'activité qui peut être un code ou un UUID.
- */
-function looksLikeUuid(str) {
-  return (
-    typeof str === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
-  );
-}
-
-/**
- * Création d'une nouvelle session.
+ * Création d'une nouvelle session (version simple).
  *
  * Payload attendu :
  * {
- *   activityTypeId?: string,       // UUID d'activity_types
- *   activityTypeCode?: string,     // code lisible d'activity_types (ex: 'surf_beginner')
- *   teacherUserId?: string,        // id du moniteur (users.id)
- *   level?: string,                // niveau (ex: 'beginner')
- *   startsAt: string (ISO),        // date/heure de début
+ *   activityTypeId: string,     // UUID dans activity_types
+ *   teacherUserId: string|null, // ici: user responsable (moderator), stocké dans teacher_user_id
+ *   level: string,
+ *   startsAt: string (ISO),
+ *   endsAt: string (ISO),
  *   capacity: number,
- *   creditCost: number
+ *   creditCost: number,
+ *   locationLabel: string
  * }
  *
- * Règles :
- * - Si on reçoit un code au lieu d'un UUID, on fait la traduction.
- * - Si activityTypeId ressemble à un code (pas un UUID), on essaie aussi de le traduire.
- * - On calcule endsAt comme startsAt + 2 heures.
- * - Status par défaut : 'scheduled'.
+ * On pose status = 'scheduled' par défaut.
  */
 export async function createSession(payload) {
-  let {
+  const {
     activityTypeId,
-    activityTypeCode,
     teacherUserId,
     level,
     startsAt,
+    endsAt,
     capacity,
     creditCost,
+    locationLabel,
   } = payload;
 
-  // Si on reçoit un code au lieu d'un UUID, on traduit (ex: 'surf_beginner')
-  if (!activityTypeId && activityTypeCode) {
-    const r = await pool.query(
-      'SELECT id FROM activity_types WHERE code = $1 LIMIT 1',
-      [activityTypeCode]
-    );
-    if (!r.rowCount) {
-      throw Object.assign(new Error('Unknown activity type code'), {
-        status: 400,
-      });
-    }
-    activityTypeId = r.rows[0].id;
-  }
-
-  // Si on a un activityTypeId mais que ce n’est pas un UUID, on tente aussi la traduction
-  // (ça permet d'envoyer soit un UUID, soit directement un code en frontend).
-  if (activityTypeId && !looksLikeUuid(activityTypeId)) {
-    const r = await pool.query(
-      'SELECT id FROM activity_types WHERE code = $1 LIMIT 1',
-      [activityTypeId]
-    );
-    if (!r.rowCount) {
-      throw Object.assign(new Error('Unknown activity type identifier'), {
-        status: 400,
-      });
-    }
-    activityTypeId = r.rows[0].id;
-  }
-
-  if (!activityTypeId) {
-    throw Object.assign(new Error('Missing activity type'), { status: 400 });
-  }
-
-  // On calcule une heure de fin 2h après startsAt
-  const startDate = new Date(startsAt);
-  const endDate = new Date(startDate);
-  endDate.setHours(startDate.getHours() + 2);
-  const endsAt = endDate.toISOString();
-
-  const res = await pool.query(
+  const r = await pool.query(
     `
     INSERT INTO activity_sessions
-      (activity_type_id, teacher_user_id, level, starts_at, ends_at, capacity, credit_cost, status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,'scheduled')
+      (activity_type_id, teacher_user_id, level, starts_at, ends_at, capacity, credit_cost, location_label, status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'scheduled')
     RETURNING *
     `,
     [
       activityTypeId,
-      teacherUserId || null,
-      level || '',
+      teacherUserId || null,   // "no one" → null
+      level,
       startsAt,
       endsAt,
       capacity,
       creditCost,
+      locationLabel,
     ]
   );
 
-  return res.rows[0];
+  return r.rows[0];
 }
 
 /**
@@ -215,19 +168,27 @@ export async function createSession(payload) {
  *   activityTypeCode?: string,
  *   startsAt?: string (ISO),
  *   capacity?: number,
- *   creditCost?: number
+ *   creditCost?: number,
+ *   moderatorId?: string|null   // id du user responsable (moderator)
  * }
  *
  * Comportement :
- * - Chaque champ non fourni (undefined / null / NaN) laisse la valeur actuelle intacte (COALESCE).
+ * - Chaque champ non fourni laisse la valeur actuelle intacte (COALESCE).
+ * - moderatorId est écrit dans teacher_user_id en base.
  * - Renvoie la session mise à jour au format complet (via getSessionById).
  */
 export async function updateSession(
   id,
-  { activityTypeId, activityTypeCode, startsAt, capacity, creditCost }
+  {
+    activityTypeId,
+    activityTypeCode,
+    startsAt,
+    capacity,
+    creditCost,
+    moderatorId,
+  }
 ) {
-  // On permet de changer le type d'activité depuis la page d'édition :
-  // si activityTypeCode est fourni, on le traduit en id.
+  // Si activityTypeCode est fourni, on le traduit en id.
   if (!activityTypeId && activityTypeCode) {
     const r = await pool.query(
       'SELECT id FROM activity_types WHERE code = $1 LIMIT 1',
@@ -245,11 +206,12 @@ export async function updateSession(
     `
     UPDATE activity_sessions
     SET
-      activity_type_id = COALESCE($2, activity_type_id),
-      starts_at        = COALESCE($3, starts_at),
+      activity_type_id  = COALESCE($2, activity_type_id),
+      starts_at         = COALESCE($3, starts_at),
       -- ends_at : à toi de décider si tu recalcules côté backend à partir de starts_at
-      capacity         = COALESCE($4, capacity),
-      credit_cost      = COALESCE($5, credit_cost)
+      capacity          = COALESCE($4, capacity),
+      credit_cost       = COALESCE($5, credit_cost),
+      teacher_user_id   = COALESCE($6, teacher_user_id)
     WHERE id = $1
     RETURNING id
     `,
@@ -261,12 +223,13 @@ export async function updateSession(
       typeof creditCost === 'number' && !Number.isNaN(creditCost)
         ? creditCost
         : null,
+      moderatorId || null, // "No one" → null en base
     ]
   );
 
   if (!r.rowCount) return null;
 
-  // On renvoie la session complète (même forme que listSessions())
+  // On renvoie la session complète (même forme que listSessions / getSessionById)
   return await getSessionById(id);
 }
 
@@ -275,8 +238,11 @@ export async function updateSession(
  *
  * - Utilise une transaction explicite pour s'assurer que la création / mise à jour
  *   de booking est atomique.
- * - action = 'add' → crée un booking si non existant.
+ * - action = 'add'    → crée un booking si non existant.
  * - action = 'remove' → passe le booking en 'cancelled'.
+ *
+ * actorUserId : id de l'utilisateur (admin/modo/teacher) qui effectue l'action,
+ *               posé par requireAuth (req.user.id) dans la route.
  */
 export async function updateSessionRoster(
   sessionId,
@@ -289,24 +255,28 @@ export async function updateSessionRoster(
     await client.query('BEGIN');
 
     if (action === 'add') {
-      // On vérifie si une réservation existe déjà
+      // Vérifier si une réservation existe déjà
       const exists = await client.query(
         'SELECT id FROM bookings WHERE session_id = $1 AND user_id = $2',
         [sessionId, userId]
       );
+
       if (!exists.rowCount) {
         await client.query(
-          `INSERT INTO bookings (session_id, user_id, status, booked_by_user_id)
-           VALUES ($1,$2,'booked',$3)`,
+          `
+          INSERT INTO bookings (session_id, user_id, status, booked_by_user_id)
+          VALUES ($1,$2,'booked',$3)
+          `,
           [sessionId, userId, actorUserId]
         );
       }
     } else if (action === 'remove') {
-      // On annule la réservation existante (soft delete)
+      // Soft delete : passer en 'cancelled'
       await client.query(
         `
         UPDATE bookings
-        SET status = 'cancelled', updated_at = NOW()
+        SET status = 'cancelled',
+            updated_at = NOW()
         WHERE session_id = $1 AND user_id = $2
         `,
         [sessionId, userId]
@@ -322,12 +292,12 @@ export async function updateSessionRoster(
     client.release();
   }
 }
-
 /**
  * Suppression d'une session.
+ *
  * - Supprime l'entrée dans activity_sessions.
- * - Si tu veux gérer les bookings associés (ON DELETE CASCADE, etc.),
- *   ça se gère côté schéma SQL.
+ * - La gestion des bookings associés se fait via le schéma (ON DELETE CASCADE)
+ *   si tu l'as configuré.
  */
 export async function deleteSession(sessionId) {
   await pool.query('DELETE FROM activity_sessions WHERE id = $1', [sessionId]);

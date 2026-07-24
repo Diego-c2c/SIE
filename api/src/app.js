@@ -17,8 +17,10 @@ export const app = express();
  * - credentials: permet l'envoi de cookies / headers d'auth (Access-Control-Allow-Credentials)
  */
 const corsOptions = {
-  origin: env.corsOrigin, // doit être 'http://localhost:8080' en dev
-  credentials: true,
+  origin: 'http://localhost:8080',
+  credentials: false, // pas de cookies, que du header Authorization
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 /**
@@ -28,7 +30,7 @@ const corsOptions = {
  * 1. CORS → pour toutes les routes.
  * 2. express.json() → parse le JSON pour req.body.
  */
-app.use(cors(corsOptions));
+app.use(cors());          // CORS ouvert en dev
 app.use(express.json());
 
 /**

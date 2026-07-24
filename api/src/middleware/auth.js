@@ -20,26 +20,25 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
 
-  try {
-    // verifyAccessToken doit renvoyer un payload qui contient au moins:
-    //  - sub  : identifiant de l'utilisateur
-    //  - email
-    //  - role
-    const payload = verifyAccessToken(token);
+try {
+  const payload = verifyAccessToken(token);
 
-    // On normalise sur req.user pour tout le backend
-    req.user = {
-      id: payload.sub,      // identifiant du user
-      email: payload.email,
-      role: payload.role,
-      // on garde le reste au besoin
-      ...payload,
-    };
-
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
+  // payload ou payload.sub manquant → 401 propre
+  if (!payload || !payload.sub) {
+    return res.status(401).json({ error: 'Invalid token payload' });
   }
+
+  req.user = {
+    id: payload.sub,
+    email: payload.email,
+    role: payload.role,
+    ...payload,
+  };
+
+  next();
+} catch (err) {
+  return res.status(401).json({ error: 'Invalid token' });
+}
 }
 
 /**
